@@ -1,0 +1,43 @@
+{
+  "name": "abqDog",
+  "image": "mcr.microsoft.com/devcontainers/base:debian",
+
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "configureZshAsDefaultShell": true,
+      "username": "rosie",
+      "userUid": "1001",
+      "userGid": "1001"
+    },
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "24.16.0",
+      "pnpmVersion": "11.5.2"
+    },
+    "ghcr.io/devcontainers/features/php:1": {
+      "version": "8.5"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:3": {
+      // Can't install moby on trixie, the latest version of debian
+      "moby": false
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bmewburn.vscode-intelephense-client",
+        "ms-azuretools.vscode-containers",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+
+  "remoteUser": "rosie",
+  "workspaceFolder": "/workspaces/abqDog",
+
+  "containerEnv": {
+    "PI_CODING_AGENT_DIR": "${containerWorkspaceFolder}/.pi"
+  },
+
+  "postCreateCommand": "npm install -g --ignore-scripts @earendil-works/pi-coding-agent"
+}
