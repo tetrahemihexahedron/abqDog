@@ -19,17 +19,20 @@ find . -maxdepth 2 -type f | sort
 
 ## 1. Create the Vite React TypeScript frontend
 
-Use `pnpm` for the frontend rather than `npm`. This is preferable here because it creates a deterministic `pnpm-lock.yaml`, is fast in local and container builds, and avoids committing multiple JavaScript lockfile formats. Use these explicit versions:
+Use `pnpm` for the frontend rather than `npm`. Use these explicit versions:
 
 - Node.js: `24.16.0`
-- pnpm: `10.24.0`
+- pnpm: `11.5.2`
+- Corepack: `0.35.0`
 - Vite/create-vite: `8.0.16`
 
-Enable the specified pnpm version through Corepack:
+Install pnpm through Corepack:
 
 ```sh
+# update corepack to a pinned version; see https://pnpm.io/installation#using-corepack
+npm install --global corepack@0.35.0
 corepack enable
-corepack prepare pnpm@10.24.0 --activate
+corepack prepare pnpm@11.5.2 --activate
 pnpm --version
 ```
 
@@ -70,85 +73,102 @@ cd ..
 
 ## 2. Create and test the frontend Dockerfile
 
-Create the frontend Dockerfile at `frontend/Dockerfile`:
+Create the frontend Dockerfile at `frontend/Dockerfile`.
+
+For now, the Dockerfile should only build the frontend assets. The build stage may run as `root`: it installs the JavaScript dependencies and produces static files in `dist/`. The runtime web server lives outside this Dockerfile, in a separate Caddy service.
 
 ```sh
 cat > frontend/Dockerfile <<'DOCKERFILE'
 FROM node:24.16.0-alpine3.22 AS build
 
-ARG UID=1001
-ARG GID=1001
-ARG PNPM_VERSION=10.24.0
-
-RUN addgroup -g ${GID} app \
-    && adduser -D -u ${UID} -G app app \
-    && mkdir -p /app \
-    && chown app:app /app
+ARG PNPM_VERSION=11.5.2
+ARG COREPACK_VERSION=0.35.0
 
 WORKDIR /app
 
-RUN corepack enable \
+RUN npm install --global corepack@${COREPACK_VERSION} \
+    && corepack enable \
     && corepack prepare pnpm@${PNPM_VERSION} --activate
 
-COPY --chown=app:app package.json pnpm-lock.yaml ./
-USER app
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-COPY --chown=app:app . ./
+COPY . ./
 RUN pnpm run build
-
-FROM node:24.16.0-alpine3.22 AS runtime
-
-ARG UID=1001
-ARG GID=1001
-ARG PNPM_VERSION=10.24.0
-
-RUN addgroup -g ${GID} app \
-    && adduser -D -u ${UID} -G app app \
-    && mkdir -p /app \
-    && chown app:app /app
-
-WORKDIR /app
-
-RUN corepack enable \
-    && corepack prepare pnpm@${PNPM_VERSION} --activate
-
-COPY --from=build --chown=app:app /app/package.json /app/pnpm-lock.yaml ./
-COPY --from=build --chown=app:app /app/node_modules ./node_modules
-COPY --from=build --chown=app:app /app/dist ./dist
-
-USER app
-EXPOSE 4173
-CMD ["pnpm", "exec", "vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
 DOCKERFILE
 ```
 
-Test the frontend Dockerfile from the repository root:
+Test that the frontend Dockerfile builds from the repository root:
 
 ```sh
-docker build -t abqdog-frontend:phase1 ./frontend
-docker run --rm -p 4173:4173 abqdog-frontend:phase1
+docker build -t abqdog-frontend-build:phase1 ./frontend
 ```
 
-In a second terminal, verify that Vite preview responds:
+## 3. Create temporary frontend Caddy and Compose files
+
+Create a temporary root-level Caddyfile for serving the built frontend:
 
 ```sh
-curl -I http://localhost:4173
+cat > Caddyfile <<'CADDY'
+:80 {
+	root * /srv/www
+	try_files {path} /index.html
+	file_server
+}
+CADDY
 ```
 
-Stop the container with `Ctrl+C`.
+Create a temporary root-level `compose.yml` with two services: one service builds the frontend assets and copies them into a shared volume, and one Caddy service serves that volume.
 
-Optionally test non-default container user ids:
+Use this additional explicit image version:
+
+- Caddy image: `caddy:2.10.2-alpine`
 
 ```sh
-docker build \
-  --build-arg UID=$(id -u) \
-  --build-arg GID=$(id -g) \
-  -t abqdog-frontend:phase1-local-user \
-  ./frontend
+cat > compose.yml <<'YAML'
+services:
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - frontend-dist:/dist
+    command: ["sh", "-c", "rm -rf /dist/* && cp -r /app/dist/. /dist"]
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    depends_on:
+      frontend:
+        condition: service_completed_successfully
+    ports:
+      - "8080:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - frontend-dist:/srv/www:ro
+
+volumes:
+  frontend-dist:
+YAML
 ```
 
-## 3. Verify frontend setup
+Test the temporary Compose setup:
+
+```sh
+docker compose -f compose.yml up --build
+```
+
+In a second terminal, verify that Caddy serves the built frontend:
+
+```sh
+curl -I http://localhost:8080
+```
+
+Stop the Compose services:
+
+```sh
+docker compose -f compose.yml down
+```
+
+## 4. Verify frontend setup
 
 Run frontend checks:
 
@@ -162,5 +182,6 @@ cd ..
 
 - `frontend/` exists and builds with Vite, React, and TypeScript.
 - `frontend/pnpm-lock.yaml` exists.
-- `frontend/Dockerfile` exists and the image builds.
-- The frontend container responds on `http://localhost:4173` when run locally.
+- `frontend/Dockerfile` exists and the build image builds.
+- Temporary root-level `Caddyfile` and `compose.yml` files exist for frontend-only container testing.
+- The temporary Compose setup serves the built static frontend with Caddy on `http://localhost:8080` when run locally.
