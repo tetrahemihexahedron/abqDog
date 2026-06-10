@@ -19,24 +19,15 @@ find . -maxdepth 2 -type f | sort
 
 ## 1. Create the backend PHP application skeleton
 
-Create the backend directories:
+Create the backend application directory and initialize Composer interactively:
 
 ```sh
-mkdir -p backend/public backend/src backend/migrations
-```
-
-Create an initial Composer project file for the backend:
-
-```sh
+mkdir -p backend
 cd backend
-composer init \
-  --name="abqdog/backend" \
-  --description="Small PHP backend for albuquerque.dog" \
-  --type="project" \
-  --license="proprietary" \
-  --require="php:^8.3" \
-  --no-interaction
+composer init
 ```
+
+Answer Composer's prompts for the backend package. Use `project` as the package type, require PHP 8.3 or newer, and skip dependencies unless you know they are needed now.
 
 Install Composer dependencies and generate `composer.lock`:
 
@@ -44,23 +35,18 @@ Install Composer dependencies and generate `composer.lock`:
 composer install
 ```
 
-Add Composer autoloading for backend source files:
+Add Composer autoloading for future backend source files:
 
 ```sh
 composer config autoload.psr-4 'AbqDog\\' src/
 composer dump-autoload
 ```
 
-Return to the repository root:
+Create the public directory and a minimal backend entrypoint:
 
 ```sh
-cd ..
-```
-
-Create a minimal backend entrypoint:
-
-```sh
-cat > backend/public/index.php <<'PHP'
+mkdir -p public
+cat > public/index.php <<'PHP'
 <?php
 
 declare(strict_types=1);
@@ -73,58 +59,68 @@ echo json_encode(['ok' => true]);
 PHP
 ```
 
-Create placeholder backend source files so the planned structure is present:
+Return to the repository root:
 
 ```sh
-touch \
-  backend/src/db.php \
-  backend/src/dogs.php \
-  backend/src/submissions.php \
-  backend/src/validation.php \
-  backend/src/response.php
+cd ..
 ```
 
-Create a placeholder migration file:
-
-```sh
-cat > backend/migrations/001_initial_schema.sql <<'SQL'
--- Initial schema will be added in Phase 2.
-SQL
-```
+Do not create empty directories or placeholder files. Add directories such as `src/` or `migrations/` only when they contain real source or migration files.
 
 ## 2. Create and test the backend Dockerfile
 
-Use explicit image versions:
+Use explicit versions, following the same conventions as `frontend/Dockerfile`: versioned base images, version build args, a multi-stage build, and a non-root user in the final stage.
 
-- PHP FPM image: `php:8.3.26-fpm-alpine3.22`
-- Composer image: `composer:2.8.12`
-
-Create the backend Dockerfile at the repository root:
+Create the backend Dockerfile at `backend/Dockerfile`:
 
 ```sh
-cat > Dockerfile.backend <<'DOCKERFILE'
-FROM php:8.3.26-fpm-alpine3.22
+cat > backend/Dockerfile <<'DOCKERFILE'
+ARG PHP_VERSION=8.3.26
+ARG ALPINE_VERSION=3.22
+ARG COMPOSER_VERSION=2.8.12
 
-RUN apk add --no-cache sqlite-dev \
-    && docker-php-ext-install pdo pdo_sqlite
+FROM composer:${COMPOSER_VERSION} AS composer-bin
+FROM php:${PHP_VERSION}-fpm-alpine${ALPINE_VERSION} AS php-base
 
-COPY --from=composer:2.8.12 /usr/bin/composer /usr/bin/composer
+RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS sqlite-dev \
+    && docker-php-ext-install pdo pdo_sqlite \
+    && apk del .build-deps \
+    && apk add --no-cache sqlite-libs
+
+FROM php-base AS vendor
+
+COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+FROM php-base AS deploy
+
+ARG UID=1001
+ARG GID=1001
+
+RUN addgroup -g ${GID} app \
+    && adduser -D -u ${UID} -G app app \
+    && mkdir -p /var/www/backend \
+    && chown -R app:app /var/www/backend
 
 WORKDIR /var/www/backend
 
-COPY backend/composer.json backend/composer.lock ./
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+COPY --from=vendor --chown=app:app /app/vendor ./vendor
+COPY --chown=app:app . ./
 
-COPY backend/ ./
+USER app
 
 CMD ["php-fpm"]
 DOCKERFILE
 ```
 
-Test the backend Dockerfile from the repository root:
+Test the backend Dockerfile from the repository root, using `backend/` as the build context:
 
 ```sh
-docker build -f Dockerfile.backend -t abqdog-backend:phase1 .
+docker build -f backend/Dockerfile -t abqdog-backend:phase1 backend
 docker run --rm abqdog-backend:phase1 php -v
 docker run --rm abqdog-backend:phase1 php -m | grep -E 'PDO|pdo_sqlite'
 ```
@@ -142,8 +138,8 @@ cd ..
 
 ## Backend completion checklist
 
-- `backend/` exists with `public/`, `src/`, `migrations/`, `composer.json`, and `composer.lock`.
+- `backend/composer.json`, `backend/composer.lock`, and `backend/public/index.php` exist.
 - `backend/public/index.php` returns the Phase 1 placeholder JSON response.
-- Composer autoloading is configured for `AbqDog\\` classes under `backend/src/`.
-- `Dockerfile.backend` exists and the backend image builds.
-- Composer is installed in the backend Docker image and used for backend autoloading.
+- Composer autoloading is configured for `AbqDog\\` classes under `backend/src/` for future source files.
+- `backend/Dockerfile` exists and the backend image builds from the `backend/` context.
+- The backend image installs PHP SQLite support and runs `php-fpm` as a non-root user.
