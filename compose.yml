@@ -1,0 +1,21 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - frontend-dist:/dist
+    command: ["sh", "-c", "rm -rf /dist/* && cp -r /app/dist/. /dist"]
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    depends_on:
+      frontend:
+        condition: service_completed_successfully
+    ports:
+      - "8080:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - frontend-dist:/srv/www:ro
+
+volumes:
+  frontend-dist:
