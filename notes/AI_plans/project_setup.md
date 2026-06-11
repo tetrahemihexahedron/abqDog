@@ -1,170 +1,144 @@
-# Phase 1 Docker Compose and deployment setup
+# Phase 1 Compose and web setup
 
-These instructions add the Compose and deployment files for the Phase 1 project skeleton. Run these after completing:
+Update the existing Compose/web configuration after completing:
 
 1. `notes/AI_plans/frontend_setup.md`
 2. `notes/AI_plans/backend_setup.md`
 
-## 0. Start from the repository root
-
-Run all commands from the project root:
+## 1. Start from the repository root
 
 ```sh
 cd /workspaces/abqDog
 ```
 
-Optional sanity check:
+Expected inputs:
 
-```sh
-pwd
-find . -maxdepth 2 -type f | sort
-```
-
-Expected files from the frontend and backend setup include:
-
+- `frontend/Dockerfile`
 - `frontend/package.json`
 - `frontend/pnpm-lock.yaml`
-- `frontend/Dockerfile`
+- `backend/Dockerfile`
 - `backend/composer.json`
 - `backend/composer.lock`
 - `backend/public/index.php`
-- `Dockerfile.backend`
+- `compose.yml`
+- root `Caddyfile`
 
-## 1. Create deployment configuration files
+## 2. Move the Caddyfile into `web/`
 
-Use explicit image versions in Compose:
-
-- Caddy image: `caddy:2.10.2-alpine`
-
-Create the deployment directory:
+Use `web/` for Caddy-specific files:
 
 ```sh
-mkdir -p deploy
+mkdir -p web
+git mv Caddyfile web/Caddyfile || mv Caddyfile web/Caddyfile
 ```
 
-Create a basic PHP configuration file:
+Edit `web/Caddyfile`:
 
 ```sh
-cat > deploy/php.ini <<'INI'
-upload_max_filesize = 5M
-post_max_size = 6M
-memory_limit = 128M
-max_execution_time = 30
-INI
+$EDITOR web/Caddyfile
 ```
 
-Create an initial Caddyfile:
+Caddyfile requirements:
+
+- serve the built frontend from `/srv/www`
+- use `/index.html` as the frontend fallback
+- handle `/api/*` with `php_fastcgi backend:9000`
+- set the API root to `/var/www/backend/public`
+- route API requests to `/index.php`, since Phase 1 has a single PHP entrypoint
+- serve uploaded dog images from `/uploads/dogs` when that feature is added
+
+Caddy must be able to read `backend/public/index.php`, so mount `./backend/public` into the `web` service read-only.
+
+## 3. Add PHP runtime configuration
+
+Put PHP configuration with the backend because it is backend-specific:
 
 ```sh
-cat > deploy/Caddyfile <<'CADDY'
-:80 {
-	root * /srv/www
-
-	handle /api/* {
-		php_fastcgi backend:9000 {
-			root /var/www/backend/public
-		}
-	}
-
-	handle /uploads/dogs/* {
-		root * /uploads
-		file_server
-	}
-
-	try_files {path} /index.html
-	file_server
-}
-CADDY
+$EDITOR backend/php.ini
 ```
 
-## 2. Create `docker-compose.yml`
+Suggested settings:
 
-Create `docker-compose.yml`:
+- `upload_max_filesize = 5M`
+- `post_max_size = 6M`
+- `memory_limit = 128M`
+- `max_execution_time = 30`
+
+Mount this file into the backend container at `/usr/local/etc/php/conf.d/zz-abqdog.ini`.
+
+## 4. Edit the existing `compose.yml`
+
+Do not create a new Compose file. Edit the existing one:
 
 ```sh
-cat > docker-compose.yml <<'YAML'
-services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    environment:
-      DATABASE_PATH: /data/albuquerque-dog.sqlite
-      UPLOAD_DIR: /uploads/dogs
-      PUBLIC_UPLOAD_BASE: /uploads/dogs
-    volumes:
-      - sqlite-data:/data
-      - uploaded-images:/uploads
-      - ./deploy/php.ini:/usr/local/etc/php/conf.d/zz-abqdog.ini:ro
-
-  frontend-build:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    user: "0:0"
-    volumes:
-      - frontend-dist:/dist
-    command: ["sh", "-c", "rm -rf /dist/* && cp -r /app/dist/. /dist"]
-
-  caddy:
-    image: caddy:2.10.2-alpine
-    depends_on:
-      backend:
-        condition: service_started
-      frontend-build:
-        condition: service_completed_successfully
-    ports:
-      - "8080:80"
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - frontend-dist:/srv/www:ro
-      - uploaded-images:/uploads:ro
-
-volumes:
-  sqlite-data:
-  uploaded-images:
-  frontend-dist:
-YAML
+$EDITOR compose.yml
 ```
 
-## 3. Verify the Compose setup
+Use services named for their directories:
 
-Build and start Docker services:
+- `frontend`
+- `backend`
+- `web`
+
+Compose requirements:
+
+- `frontend`
+  - build `./frontend`, target `deploy`
+  - populate the `frontend-dist` volume from `/app/dist`
+  - exit successfully so `web` can depend on it with `service_completed_successfully`
+- `backend`
+  - build `./backend`, target `deploy`
+  - mount `sqlite-data` at `/data`
+  - mount `uploaded-images` at `/uploads`
+  - mount `./backend/php.ini` read-only into PHP config
+  - set backend environment values such as `DATABASE_PATH`, `UPLOAD_DIR`, and `PUBLIC_UPLOAD_BASE`
+- `web`
+  - use `caddy:2.11.4-alpine`
+  - depend on `frontend` completing successfully and `backend` starting
+  - publish `8080:80`
+  - mount `./web/Caddyfile` to `/etc/caddy/Caddyfile:ro`
+  - mount `frontend-dist` to `/srv/www:ro`
+  - mount `uploaded-images` to `/uploads:ro`
+  - mount `./backend/public` to `/var/www/backend/public:ro`
+
+Keep these named volumes:
+
+- `frontend-dist`
+- `sqlite-data`
+- `uploaded-images`
+
+## 5. Verify
 
 ```sh
 docker compose up --build
 ```
 
-In a second terminal, verify Caddy serves the frontend:
+In another terminal:
 
 ```sh
 curl -I http://localhost:8080
-```
-
-Verify Caddy reaches the backend placeholder through the API route:
-
-```sh
 curl http://localhost:8080/api/health
 ```
 
-For the Phase 1 placeholder backend, any API path may return:
+The Phase 1 backend placeholder should return JSON like:
 
 ```json
 {"ok":true}
 ```
 
-Stop the Docker services:
+Stop services:
 
 ```sh
 docker compose down
 ```
 
-## Compose/deployment completion checklist
+## Completion checklist
 
-- `deploy/php.ini` exists.
-- `deploy/Caddyfile` exists.
-- `docker-compose.yml` exists.
-- Compose builds `frontend/Dockerfile` and `Dockerfile.backend`.
-- Caddy uses the pinned image `caddy:2.10.2-alpine`.
+- `web/Caddyfile` exists; root `Caddyfile` was moved.
+- `backend/php.ini` exists.
+- `compose.yml` was edited in place.
+- Services are named `frontend`, `backend`, and `web`.
+- `web` uses `caddy:2.11.4-alpine`.
+- Compose builds `frontend/Dockerfile` and `backend/Dockerfile`.
 - The site responds on `http://localhost:8080`.
-- The backend placeholder responds through Caddy under `/api/*`.
+- The backend placeholder responds through `/api/*`.
