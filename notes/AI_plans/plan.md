@@ -9,8 +9,6 @@ Build a small, maintainable website for showcasing dogs that live in Albuquerque
 - a small SQLite database for submitted dog information;
 - Docker-based deployment behind Caddy.
 
-The plan intentionally keeps the dependency count low and avoids ORMs, low-code tools, and large backend frameworks.
-
 ## Technology choices
 
 ### Frontend
@@ -60,6 +58,7 @@ PHP is a good fit here because it keeps the backend small. SQLite support is ava
 ```text
 .
 ├── frontend/
+│   ├── Dockerfile
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/
@@ -73,6 +72,7 @@ PHP is a good fit here because it keeps the backend small. SQLite support is ava
 │   ├── tsconfig.json
 │   └── vite.config.ts
 ├── backend/
+│   ├── Dockerfile
 │   ├── public/
 │   │   └── index.php
 │   ├── src/
@@ -83,28 +83,21 @@ PHP is a good fit here because it keeps the backend small. SQLite support is ava
 │   │   └── response.php
 │   ├── migrations/
 │   │   └── 001_initial_schema.sql
+│   ├── php.ini
 │   └── seed.sql
-├── deploy/
-│   ├── Caddyfile
-│   └── php.ini
-├── docker-compose.yml
-├── Dockerfile.frontend
-├── Dockerfile.backend
+├── web/
+│   └── Caddyfile
+├── compose.yml
 └── README.md
 ```
 
 ## Phase 1: Basic project setup
 
 1. Create `frontend/` as a Vite React TypeScript app.
-2. Keep frontend dependencies limited to:
-   - `react`
-   - `react-dom`
-   - `typescript`
-   - `vite`
-   - `@vitejs/plugin-react`
-3. Create `backend/` as a small PHP application with no Composer dependencies.
-4. Add root-level Docker and Compose files.
-5. Add a root `README.md` with local development instructions.
+2. Create `backend/` as a small PHP application with no Composer dependencies.
+3. Add Dockerfiles for backend and frontend images and a root-level compose file, with a Caddy service.
+4. Create an override compose file and images appropriate for local development.
+5. Add local development instructions to the root README.
 
 ## Phase 2: Database design
 
