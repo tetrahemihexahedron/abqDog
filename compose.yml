@@ -7,16 +7,26 @@ services:
       - frontend-dist:/app/dist
     command: ["true"]
 
-  caddy:
-    image: caddy:2.10.2-alpine
+  backend:
+    build:
+      context: ./backend
+      target: deploy
+    volumes:
+      - ./backend/php.ini:/usr/local/etc/php/conf.d/zz-abqdog.ini:ro
+
+  web:
+    image: caddy:2.11.4-alpine
     depends_on:
       frontend:
         condition: service_completed_successfully
+      backend:
+        condition: service_started
     ports:
       - "8080:80"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web/Caddyfile:/etc/caddy/Caddyfile:ro
       - frontend-dist:/srv/www:ro
+      - ./backend/public:/var/www/backend/public:ro
 
 volumes:
   frontend-dist:
