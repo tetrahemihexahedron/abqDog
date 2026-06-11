@@ -15,7 +15,7 @@ The website will be deployed using caddy running in a docker container.
 
 ### Dockerfiles and compose files
 
-- While build processes can be run as root, prefer to run log-running processes as a non-root user. The UID and GID of this user should be specified in build args, with default value 1001.
+- While build processes can be run as root, prefer to run long-running processes as a non-root user. The UID and GID of this user should be specified in build args, with default value 1001.
 
 - Give the versions of images and major installed software in build args, with defaults set in the Dockerfile.
 
