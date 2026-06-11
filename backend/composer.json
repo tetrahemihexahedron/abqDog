@@ -1,0 +1,14 @@
+{
+    "name": "abqdog/backend",
+    "description": "Small PHP backend for albuquerque.dog",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": "8.5.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "AbqDog\\": "src/"
+        }
+    }
+}
