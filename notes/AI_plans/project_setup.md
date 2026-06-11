@@ -1,144 +1,74 @@
 # Phase 1 Compose and web setup
 
-Update the existing Compose/web configuration after completing:
+This records the Compose/web setup completed after frontend and backend initialization.
 
-1. `notes/AI_plans/frontend_setup.md`
-2. `notes/AI_plans/backend_setup.md`
+## Files changed
 
-## 1. Start from the repository root
-
-```sh
-cd /workspaces/abqDog
-```
-
-Expected inputs:
-
-- `frontend/Dockerfile`
-- `frontend/package.json`
-- `frontend/pnpm-lock.yaml`
-- `backend/Dockerfile`
-- `backend/composer.json`
-- `backend/composer.lock`
-- `backend/public/index.php`
-- `compose.yml`
-- root `Caddyfile`
-
-## 2. Move the Caddyfile into `web/`
-
-Use `web/` for Caddy-specific files:
+From the repository root:
 
 ```sh
 mkdir -p web
 git mv Caddyfile web/Caddyfile || mv Caddyfile web/Caddyfile
 ```
 
-Edit `web/Caddyfile`:
+Created/updated:
 
-```sh
-$EDITOR web/Caddyfile
-```
+- `web/Caddyfile`
+- `backend/php.ini`
+- `compose.yml`
 
-Caddyfile requirements:
+## Current setup
 
-- serve the built frontend from `/srv/www`
-- use `/index.html` as the frontend fallback
-- handle `/api/*` with `php_fastcgi backend:9000`
-- set the API root to `/var/www/backend/public`
-- route API requests to `/index.php`, since Phase 1 has a single PHP entrypoint
-- serve uploaded dog images from `/uploads/dogs` when that feature is added
+`web/Caddyfile`:
 
-Caddy must be able to read `backend/public/index.php`, so mount `./backend/public` into the `web` service read-only.
+- serves frontend assets from `/srv/www`
+- falls back to `/index.html` for frontend routes
+- routes `/api/*` to `php_fastcgi backend:9000`
+- rewrites API requests to `/index.php`, because Phase 1 has a single PHP entrypoint
 
-## 3. Add PHP runtime configuration
-
-Put PHP configuration with the backend because it is backend-specific:
-
-```sh
-$EDITOR backend/php.ini
-```
-
-Suggested settings:
+`backend/php.ini` contains basic backend PHP runtime limits:
 
 - `upload_max_filesize = 5M`
 - `post_max_size = 6M`
 - `memory_limit = 128M`
 - `max_execution_time = 30`
 
-Mount this file into the backend container at `/usr/local/etc/php/conf.d/zz-abqdog.ini`.
-
-## 4. Edit the existing `compose.yml`
-
-Do not create a new Compose file. Edit the existing one:
-
-```sh
-$EDITOR compose.yml
-```
-
-Use services named for their directories:
+`compose.yml` uses these services:
 
 - `frontend`
+  - builds `./frontend`, target `deploy`
+  - mounts `frontend-dist` at `/app/dist`
+  - exits with `command: ["true"]`
 - `backend`
+  - builds `./backend`, target `deploy`
+  - mounts `./backend/php.ini` into PHP config
 - `web`
+  - uses `caddy:2.11.4-alpine`
+  - depends on `frontend` completing and `backend` starting
+  - publishes `8080:80`
+  - mounts `web/Caddyfile`, `frontend-dist`, and `backend/public`
 
-Compose requirements:
+Only the `frontend-dist` named volume is currently used. Database and upload settings/volumes were intentionally left out until those features exist.
 
-- `frontend`
-  - build `./frontend`, target `deploy`
-  - populate the `frontend-dist` volume from `/app/dist`
-  - exit successfully so `web` can depend on it with `service_completed_successfully`
-- `backend`
-  - build `./backend`, target `deploy`
-  - mount `sqlite-data` at `/data`
-  - mount `uploaded-images` at `/uploads`
-  - mount `./backend/php.ini` read-only into PHP config
-  - set backend environment values such as `DATABASE_PATH`, `UPLOAD_DIR`, and `PUBLIC_UPLOAD_BASE`
-- `web`
-  - use `caddy:2.11.4-alpine`
-  - depend on `frontend` completing successfully and `backend` starting
-  - publish `8080:80`
-  - mount `./web/Caddyfile` to `/etc/caddy/Caddyfile:ro`
-  - mount `frontend-dist` to `/srv/www:ro`
-  - mount `uploaded-images` to `/uploads:ro`
-  - mount `./backend/public` to `/var/www/backend/public:ro`
-
-Keep these named volumes:
-
-- `frontend-dist`
-- `sqlite-data`
-- `uploaded-images`
-
-## 5. Verify
+## Verification commands run
 
 ```sh
-docker compose up --build
-```
-
-In another terminal:
-
-```sh
+docker compose config
+docker compose up --build -d
 curl -I http://localhost:8080
 curl http://localhost:8080/api/health
-```
-
-The Phase 1 backend placeholder should return JSON like:
-
-```json
-{"ok":true}
-```
-
-Stop services:
-
-```sh
 docker compose down
 ```
 
-## Completion checklist
+Verified results:
 
-- `web/Caddyfile` exists; root `Caddyfile` was moved.
-- `backend/php.ini` exists.
-- `compose.yml` was edited in place.
-- Services are named `frontend`, `backend`, and `web`.
-- `web` uses `caddy:2.11.4-alpine`.
-- Compose builds `frontend/Dockerfile` and `backend/Dockerfile`.
-- The site responds on `http://localhost:8080`.
-- The backend placeholder responds through `/api/*`.
+- frontend responds on `http://localhost:8080`
+- `/api/health` returns `{"ok":true}`
+- services stop cleanly with `docker compose down`
+
+## Possible issues / improvements
+
+- The `frontend` service is being used as a one-shot asset-population container. A later production setup might instead copy built assets into a dedicated Caddy image or use a shared build stage.
+- Caddy needs `./backend/public` mounted so it can resolve the PHP entrypoint for FastCGI. This is acceptable for now, but should be revisited if backend routing changes.
+- Database and upload volumes/env vars still need to be added when those backend features are implemented.
+- `php.ini` is mounted from `backend/` because it is backend-specific; keep it there unless shared PHP configuration is later needed.
