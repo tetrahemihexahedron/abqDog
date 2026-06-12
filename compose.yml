@@ -3,8 +3,6 @@ services:
     build:
       context: ./backend
       target: deploy
-    volumes:
-      - ./backend/php.ini:/usr/local/etc/php/conf.d/zz-abqdog.ini:ro
 
   web:
     build:

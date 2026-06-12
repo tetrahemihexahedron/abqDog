@@ -31,6 +31,7 @@ RUN addgroup -g ${GID} app \
 
 WORKDIR /var/www/backend
 
+COPY php.ini /usr/local/etc/php/conf.d/zz-abqdog.ini
 COPY --from=vendor --chown=app:app /app/vendor ./vendor
 COPY --chown=app:app . ./
 

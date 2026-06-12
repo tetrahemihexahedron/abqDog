@@ -12,7 +12,6 @@ services:
     volumes:
       - ./backend:/var/www/backend
       - backend-vendor:/var/www/backend/vendor
-      - ./backend/php.ini:/usr/local/etc/php/conf.d/zz-abqdog.ini:ro
 
   web:
     build: !reset null
