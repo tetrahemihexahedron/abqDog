@@ -1,10 +1,14 @@
 services:
   backend:
+    init: true
+    restart: unless-stopped
     build:
       context: ./backend
       target: deploy
 
   web:
+    init: true
+    restart: unless-stopped
     build:
       context: .
       dockerfile: web/Dockerfile

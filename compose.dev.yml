@@ -1,5 +1,6 @@
 services:
   frontend:
+    init: true
     build:
       context: ./frontend
       target: dev
@@ -9,6 +10,7 @@ services:
       - frontend-node-modules:/app/node_modules
 
   backend:
+    restart: "no"
     volumes:
       - ./backend:/var/www/backend
       - backend-vendor:/var/www/backend/vendor
@@ -16,6 +18,7 @@ services:
   web:
     build: !reset null
     image: caddy:2.11.4-alpine
+    restart: "no"
     depends_on:
       frontend:
         condition: service_started
