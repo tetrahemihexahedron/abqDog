@@ -1,74 +1,62 @@
 # Phase 1 Compose and web setup
 
-This records the Compose/web setup completed after frontend and backend initialization.
+This records the Docker Compose/web setup completed after frontend and backend initialization.
 
 ## Files changed
 
-From the repository root:
-
-```sh
-mkdir -p web
-git mv Caddyfile web/Caddyfile || mv Caddyfile web/Caddyfile
-```
-
-Created/updated:
-
+- `web/Dockerfile`
 - `web/Caddyfile`
+- `web/Caddyfile.dev`
+- `backend/Dockerfile`
 - `backend/php.ini`
 - `compose.yml`
+- `compose.dev.yml`
+- `README.md`
 
 ## Current setup
 
-`web/Caddyfile`:
+Production uses `compose.yml`:
 
-- serves frontend assets from `/srv/www`
-- falls back to `/index.html` for frontend routes
-- routes `/api/*` to `php_fastcgi backend:9000`
-- rewrites API requests to `/index.php`, because Phase 1 has a single PHP entrypoint
-
-`backend/php.ini` contains basic backend PHP runtime limits:
-
-- `upload_max_filesize = 5M`
-- `post_max_size = 6M`
-- `memory_limit = 128M`
-- `max_execution_time = 30`
-
-`compose.yml` uses these services:
-
-- `frontend`
-  - builds `./frontend`, target `deploy`
-  - mounts `frontend-dist` at `/app/dist`
-  - exits with `command: ["true"]`
 - `backend`
   - builds `./backend`, target `deploy`
-  - mounts `./backend/php.ini` into PHP config
+  - installs Composer dependencies in a build stage
+  - copies `backend/php.ini` into the image
+  - runs PHP-FPM as non-root user `app`
+  - uses `init: true` and `restart: unless-stopped`
 - `web`
-  - uses `caddy:2.11.4-alpine`
-  - depends on `frontend` completing and `backend` starting
+  - builds from repository root with `web/Dockerfile`
+  - builds frontend assets in a Node/pnpm stage
+  - copies built frontend assets into a pinned Caddy image
+  - serves frontend routes from `/srv/www`
+  - routes `/api/*` to `php_fastcgi backend:9000`
   - publishes `8080:80`
-  - mounts `web/Caddyfile`, `frontend-dist`, and `backend/public`
+  - uses `init: true` and `restart: unless-stopped`
+- default network is explicitly named `abqdog`
 
-Only the `frontend-dist` named volume is currently used. Database and upload settings/volumes were intentionally left out until those features exist.
+Development uses `compose.yml` plus `compose.dev.yml`:
+
+- adds a `frontend` service running the Vite dev server
+- bind-mounts frontend and backend source directories
+- uses named volumes for `node_modules` and backend `vendor`
+- replaces production Caddy build with `caddy:2.11.4-alpine`
+- mounts `web/Caddyfile.dev`
+- disables inherited restart policies for dev backend/web
 
 ## Verification commands run
 
 ```sh
 docker compose config
-docker compose up --build -d
-curl -I http://localhost:8080
-curl http://localhost:8080/api/health
+docker compose -f compose.yml -f compose.dev.yml config
+docker compose build
+docker compose up -d
+curl http://localhost:8080/
+curl http://localhost:8080/api/
 docker compose down
 ```
 
 Verified results:
 
+- production images build successfully
 - frontend responds on `http://localhost:8080`
-- `/api/health` returns `{"ok":true}`
+- `/api/` returns `{"ok":true}` through Caddy/PHP-FPM
 - services stop cleanly with `docker compose down`
-
-## Possible issues / improvements
-
-- The `frontend` service is being used as a one-shot asset-population container. A later production setup might instead copy built assets into a dedicated Caddy image or use a shared build stage.
-- Caddy needs `./backend/public` mounted so it can resolve the PHP entrypoint for FastCGI. This is acceptable for now, but should be revisited if backend routing changes.
-- Database and upload volumes/env vars still need to be added when those backend features are implemented.
-- `php.ini` is mounted from `backend/` because it is backend-specific; keep it there unless shared PHP configuration is later needed.
