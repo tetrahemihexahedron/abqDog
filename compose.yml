@@ -6,7 +6,7 @@ services:
 
   web:
     build:
-      context: ./web
+      context: .
       dockerfile: web/Dockerfile
       target: deploy
     depends_on:
