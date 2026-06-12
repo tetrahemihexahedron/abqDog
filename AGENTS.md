@@ -7,6 +7,16 @@ To begin with, the website will only have
 - a landing page, containing the dogs that are showcased;
 - a page with a form for submitting information about a dog.
 
+Frontend:
+- React, Typescript, Vite, plain CSS
+
+Backend:
+- PHP
+- returns JSON response
+
+Database:
+- SQLite
+
 The website will be deployed using caddy running in a docker container.
 
 ## Conventions
