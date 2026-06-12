@@ -1,5 +1,5 @@
 {
-  "name": "abqDog/full",
+  "name": "abqDog/frontend",
   "image": "mcr.microsoft.com/devcontainers/base:debian",
 
   "features": {
@@ -13,9 +13,6 @@
       "version": "24.16.0",
       "pnpmVersion": "11.5.2"
     },
-    "ghcr.io/devcontainers/features/php:1": {
-      "version": "8.5"
-    },
     "ghcr.io/devcontainers/features/docker-in-docker:3": {
       // Can't install moby on trixie, the latest version of debian
       "moby": false
@@ -25,7 +22,6 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "bmewburn.vscode-intelephense-client",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "ms-azuretools.vscode-containers"
@@ -34,7 +30,8 @@
   },
 
   "remoteUser": "rosie",
-  "workspaceFolder": "/workspaces/abqDog",
+  "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces/abqDog,type=bind",
+  "workspaceFolder": "/workspaces/abqDog/frontend",
 
   "containerEnv": {
     "PI_CODING_AGENT_DIR": "/workspaces/abqDog/.pi"

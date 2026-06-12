@@ -1,5 +1,5 @@
 {
-  "name": "abqDog/full",
+  "name": "abqDog/backend",
   "image": "mcr.microsoft.com/devcontainers/base:debian",
 
   "features": {
@@ -26,7 +26,6 @@
     "vscode": {
       "extensions": [
         "bmewburn.vscode-intelephense-client",
-        "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "ms-azuretools.vscode-containers"
       ]
@@ -34,7 +33,8 @@
   },
 
   "remoteUser": "rosie",
-  "workspaceFolder": "/workspaces/abqDog",
+  "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces/abqDog,type=bind",
+  "workspaceFolder": "/workspaces/abqDog/backend",
 
   "containerEnv": {
     "PI_CODING_AGENT_DIR": "/workspaces/abqDog/.pi"
