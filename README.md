@@ -2,7 +2,7 @@
 
 ## Local development
 
-This project uses `just` for common development commands. The devcontainers install it automatically.
+This project uses [`just`](https://just.systems) for common development commands. These commands will work inside the devcontainer. They should also work locally, without running the dev container, if `just` and other dependencies (like Docker) are installed.
 
 Start the development environment:
 
