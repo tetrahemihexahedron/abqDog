@@ -14,8 +14,13 @@ $routes = [
     ],
 ];
 
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+
 try {
-    (new Router($routes))->dispatch();
+    $response = (new Router($routes))->dispatch($method, $path);
 } catch (Throwable) {
-    Http::jsonError('Internal server error.', 500);
+    $response = Http::jsonError('Internal server error.', 500);
 }
+
+Http::send($response);

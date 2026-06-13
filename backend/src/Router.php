@@ -7,29 +7,24 @@ namespace AbqDog;
 final class Router
 {
     /**
-     * @param array<string, array<string, callable(): void>> $routes
+     * @param array<string, array<string, callable(): Response>> $routes
      */
     public function __construct(private readonly array $routes)
     {
     }
 
-    public function dispatch(): void
+    public function dispatch(string $method, string $path): Response
     {
-        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-
         if (!isset($this->routes[$path])) {
-            Http::jsonError('Not found.', 404);
-            return;
+            return Http::jsonError('Not found.', 404);
         }
 
         $handlersByMethod = $this->routes[$path];
 
         if (!isset($handlersByMethod[$method])) {
-            Http::methodNotAllowed(array_keys($handlersByMethod));
-            return;
+            return Http::methodNotAllowed(array_keys($handlersByMethod));
         }
 
-        $handlersByMethod[$method]();
+        return $handlersByMethod[$method]();
     }
 }

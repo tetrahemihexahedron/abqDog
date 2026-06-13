@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace AbqDog\Handlers;
 
 use AbqDog\Http;
+use AbqDog\Response;
 
 final class HealthHandler
 {
-    public static function show(): void
+    public static function show(): Response
     {
-        Http::jsonResponse(['ok' => true]);
+        return Http::jsonResponse(['ok' => true]);
     }
 }
