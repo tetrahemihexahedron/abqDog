@@ -26,8 +26,8 @@ ARG GID=1001
 
 RUN addgroup -g ${GID} app \
 	&& adduser -D -u ${UID} -G app app \
-	&& mkdir -p /var/www/backend \
-	&& chown -R app:app /var/www/backend
+	&& mkdir -p /var/www/backend /data \
+	&& chown -R app:app /var/www/backend /data
 
 WORKDIR /var/www/backend
 
