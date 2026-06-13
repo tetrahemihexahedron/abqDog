@@ -5,6 +5,10 @@ services:
     build:
       context: ./backend
       target: deploy
+    environment:
+      DATABASE_PATH: ${DATABASE_PATH:?DATABASE_PATH}
+    volumes:
+      - sqlite-data:/data
 
   web:
     init: true
@@ -20,6 +24,9 @@ services:
       - "8080:80"
     volumes:
       - ./backend/public:/var/www/backend/public:ro
+
+volumes:
+  sqlite-data:
 
 networks:
   default:
