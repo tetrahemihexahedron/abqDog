@@ -8,7 +8,7 @@ FROM php:${PHP_VERSION}-fpm-alpine${ALPINE_VERSION} AS php-base
 RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS sqlite-dev \
 	&& docker-php-ext-install pdo pdo_sqlite \
 	&& apk del .build-deps \
-	&& apk add --no-cache sqlite-libs
+	&& apk add --no-cache sqlite sqlite-libs
 
 FROM php-base AS vendor
 
