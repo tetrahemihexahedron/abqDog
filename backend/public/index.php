@@ -2,8 +2,20 @@
 
 declare(strict_types=1);
 
+use AbqDog\Handlers\HealthHandler;
+use AbqDog\Http;
+use AbqDog\Router;
+
 require __DIR__ . '/../vendor/autoload.php';
 
-header('Content-Type: application/json; charset=utf-8');
+$routes = [
+    '/api/health' => [
+        'GET' => [HealthHandler::class, 'show'],
+    ],
+];
 
-echo json_encode(['ok' => true]);
+try {
+    (new Router($routes))->dispatch();
+} catch (Throwable) {
+    Http::jsonError('Internal server error.', 500);
+}
