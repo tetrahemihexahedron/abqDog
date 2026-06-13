@@ -1,3 +1,5 @@
+PRAGMA journal_mode = WAL;
+
 CREATE TABLE dogs (
   id INTEGER PRIMARY KEY,
   dog_name TEXT NOT NULL,
