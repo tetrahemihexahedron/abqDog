@@ -52,7 +52,7 @@ CREATE INDEX idx_dogs_created_at ON dogs(created_at);
 Keep migrations as plain numbered SQL files under `backend/migrations/`:
 
 ```text
-001_initial_schema.sql
+001_create_dogs_table.sql
 002_future_change.sql
 ```
 
@@ -61,39 +61,30 @@ For version 1, applying migrations manually with `sqlite3` is acceptable. Automa
 Example manual initialization:
 
 ```sh
-sqlite3 /data/abqdog.sqlite < backend/migrations/001_initial_schema.sql
+sqlite3 "$DATABASE_PATH" < migrations/001_create_dogs_table.sql
 ```
 
 The command should be run in the backend container.
 
 ## Steps to perform
 
-1. Create the initial migration file at `backend/migrations/001_initial_schema.sql` using the schema above.
-2. Decide where `DATABASE_PATH` is set for each environment. For now, all environments can use the default value:
+1. Done: create the initial migration file at `backend/migrations/001_create_dogs_table.sql` using the schema above.
+2. Done: define `DATABASE_PATH` once for the whole application in the root `.env` file, ignored by git:
 
    ```text
    DATABASE_PATH=/data/abqdog.sqlite
    ```
 
-   This is the first required application environment variable. It should eventually be set explicitly in Docker Compose for local development and production, and can be read with a default fallback in PHP.
-3. Ensure the backend container has a persistent writable mount at `/data` and that the long-running PHP-FPM user can read and write the database file and parent directory.
-4. Ensure the backend image or maintenance image includes the `sqlite3` CLI if migrations will be applied manually from inside the container. PHP also needs PDO SQLite enabled.
-5. Initialize the database by applying `001_initial_schema.sql` to `DATABASE_PATH`.
-6. Optionally apply SQLite settings during initialization, such as WAL mode, after confirming they work with the selected Docker volume setup.
-7. Create a small seed or test data SQL file for local development. Include at least:
-   - one `approved` dog for testing public listing behavior;
-   - one `pending` dog to confirm pending submissions are hidden;
-   - one `rejected` dog to confirm rejected submissions are hidden.
-8. Load the test data into a development database only. Do not seed production with fake dogs unless intentionally needed.
-9. Add a small PHP database connection helper using PDO. It should:
-   - read `DATABASE_PATH` from the environment, defaulting to `/data/abqdog.sqlite`;
-   - connect with `sqlite:` DSN;
-   - set `PDO::ATTR_ERRMODE` to `PDO::ERRMODE_EXCEPTION`;
-   - set `PDO::ATTR_DEFAULT_FETCH_MODE` to `PDO::FETCH_ASSOC`;
-   - run `PRAGMA foreign_keys = ON` for every connection.
-10. Test the PDO connection from inside the backend container by running a small PHP script or endpoint that queries the database, for example `SELECT COUNT(*) FROM dogs`.
-11. Test the public query logic against the seed data and confirm only approved dogs are returned and private fields are excluded.
-12. Document the exact migration and seed commands in the backend or root README once the Docker Compose service names and volume paths are finalized.
+   `compose.yml` passes this value into the backend container.
+3. Done: mount a persistent named volume at `/data` for the backend container.
+4. Done: ensure the backend image includes PDO SQLite and the `sqlite3` CLI, and that `/data` is writable by the application user.
+5. Done: initialize the database by applying `001_create_dogs_table.sql` to `DATABASE_PATH` from inside the backend container.
+6. Done: apply WAL mode during initialization and verify that the `dogs` table exists.
+7. Done: create development-only seed data at `backend/dev-data/seed.sql`, with fake pet squash entries and matching tracked images in `backend/dev-data/uploads/dogs/`. It includes `approved`, `pending`, and `rejected` rows.
+8. Done: load the test data into the development database only. Do not seed production with fake dogs unless intentionally needed.
+9. Done: add `backend/src/Database.php`, a small PHP database connection helper using PDO. It reads `DATABASE_PATH`, defaults to `/data/abqdog.sqlite`, connects with a `sqlite:` DSN, sets PDO error and fetch modes, and runs `PRAGMA foreign_keys = ON` and `PRAGMA busy_timeout = 5000` for every connection.
+10. Done: test the PDO connection from inside the backend container with `SELECT COUNT(*) FROM dogs`.
+11. Done: document the exact migration, seed, and PDO verification commands in the root README.
 
 ## Operational notes
 
