@@ -26,57 +26,74 @@ The exact route strings should be centralized in one obvious place so they can b
 
 ## Proposed backend structure
 
-Add these files under `backend/src/`:
+Add backend source files incrementally under `backend/src/`:
 
 ```text
 src/
 ├── Config.php
 ├── Http.php
+├── Response.php
 ├── Router.php
-├── Validation.php
-├── Uploads.php
 └── Handlers/
-    ├── HealthHandler.php
-    ├── DogsHandler.php
-    └── SubmissionsHandler.php
+    └── HealthHandler.php
 ```
 
-Keep `backend/public/index.php` as the front controller. It should only load Composer, build a route table, dispatch the request, and convert uncaught exceptions to JSON 500 responses.
+Add `DogsHandler.php` when implementing `GET /api/dogs`. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` only when implementing `POST /api/submissions`; do not create placeholder classes before they are needed.
+
+Keep `backend/public/index.php` as the front controller. It should only load Composer, build a route table, read the HTTP method/path, dispatch the request, convert uncaught exceptions to JSON 500 responses, and send the final `Response`.
 
 ## Route design
 
 Use a tiny route table instead of hard-coded `if`/`else` blocks. This keeps routing explicit but easy to adjust.
 
-Example shape:
+Use a path-keyed route table with methods nested under each path:
 
 ```php
 $routes = [
-    ['GET',  '/api/health',      [HealthHandler::class, 'show']],
-    ['GET',  '/api/dogs',        [DogsHandler::class, 'index']],
-    ['POST', '/api/submissions', [SubmissionsHandler::class, 'create']],
+    '/api/health' => [
+        'GET' => [HealthHandler::class, 'show'],
+    ],
+    '/api/dogs' => [
+        'GET' => [DogsHandler::class, 'index'],
+    ],
+    '/api/submissions' => [
+        'POST' => [SubmissionsHandler::class, 'create'],
+    ],
 ];
 ```
 
+More elaborate structures with route objects or builder methods are unnecessary until the API needs path parameters, middleware, or route groups.
+
 `Router` responsibilities:
 
-1. Read the method from `$_SERVER['REQUEST_METHOD']`.
-2. Read the path from `parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)`.
-3. Match exact method + path pairs.
-4. Return a JSON `404` for no path match.
-5. Return a JSON `405` for a known path with the wrong method, including an `Allow` header.
-6. Invoke the matching handler.
+1. Accept the already-parsed HTTP method and path as arguments.
+2. Match exact method + path pairs.
+3. Return a JSON `404` `Response` for no path match.
+4. Return a JSON `405` `Response` for a known path with the wrong method, including an `Allow` header.
+5. Invoke the matching handler and return its `Response`.
+
+`public/index.php` is responsible for reading `$_SERVER['REQUEST_METHOD']` and `parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)`, then passing those values to `Router::dispatch()`.
 
 Do not add route parameters yet. If they become necessary later, replace only `Router`, not handlers.
 
 ## Shared HTTP helpers
 
+Create `Response.php` as a small immutable response object containing:
+
+- HTTP status code.
+- JSON payload array.
+- Additional headers.
+
 Create `Http.php` with small helpers such as:
 
-- `jsonResponse(array $payload, int $status = 200, array $headers = []): void`
-- `jsonError(string $message, int $status, array $details = []): void`
-- `methodNotAllowed(array $allowedMethods): void`
+- `jsonResponse(array $payload, int $status = 200, array $headers = []): Response`
+- `jsonError(string $message, int $status, array $details = []): Response`
+- `methodNotAllowed(array $allowedMethods): Response`
+- `send(Response $response): void`
 
-Every response should include:
+Only `Http::send()` should emit headers and body. Routing and handlers should return `Response` objects so they are easy to test without subprocesses or real HTTP.
+
+Every sent response should include:
 
 ```http
 Content-Type: application/json; charset=utf-8
@@ -98,16 +115,19 @@ Use appropriate status codes:
 
 Create `Config.php` with environment-backed accessors:
 
-- `databasePath()` can defer to `Database::connect()` and does not need duplication unless useful.
-- `uploadDir()`: `UPLOAD_DIR`, default `/uploads/dogs`.
-- `publicUploadBase()`: `PUBLIC_UPLOAD_BASE`, default `/uploads/dogs`.
-- `maxUploadBytes()`: fixed `5 * 1024 * 1024` for now, or `MAX_UPLOAD_BYTES` with that default.
+- `databasePath()`: `DATABASE_PATH`, default `/data/abqdog.sqlite`; `Database::connect()` should use this accessor.
+- `dogImageUploadDir()`: `DOG_IMAGE_UPLOAD_DIR`, default `/uploads/dogs`.
+- `dogImageUrlBase()`: `DOG_IMAGE_URL_BASE`, default `/img/dogs`.
+
+Do not add a configurable max-upload accessor yet; hardcode the first-version 5 MB limit in the upload handling when that endpoint is implemented.
 
 Normalize paths carefully:
 
-- `UPLOAD_DIR` should be a filesystem path.
-- `PUBLIC_UPLOAD_BASE` should be a URL path with no trailing slash when constructing `photo_url`.
-- The API should never return `UPLOAD_DIR` or any filesystem path.
+- `DOG_IMAGE_UPLOAD_DIR` should be a filesystem path where submitted dog images are stored.
+- `DOG_IMAGE_URL_BASE` should be a URL path with no trailing slash when constructing `photo_url`.
+- The API should never return `DOG_IMAGE_UPLOAD_DIR` or any filesystem path.
+
+Using “image” terminology is fine and is a little clearer than “upload” for code that later serves approved dog photos. The main caveat is to remember these files originate from user uploads, so validation and moderation rules still need to treat them as untrusted input.
 
 ## `GET /api/health`
 
@@ -137,7 +157,7 @@ Map each row to:
   "id": 1,
   "dog_name": "Example",
   "description": "Short public description.",
-  "photo_url": "/uploads/dogs/example.webp",
+  "photo_url": "/img/dogs/example.webp",
   "neighborhood": "Nob Hill",
   "created_at": "2026-06-13T00:00:00Z"
 }
@@ -207,7 +227,7 @@ Rules:
    bin2hex(random_bytes(16)) . $extension
    ```
 
-7. Ensure `UPLOAD_DIR` exists and is writable; create it if needed.
+7. Ensure `DOG_IMAGE_UPLOAD_DIR` exists and is writable; create it if needed.
 8. Store with `move_uploaded_file` only.
 9. On database insert failure after moving a file, delete the uploaded file before returning an error.
 
@@ -263,8 +283,8 @@ Add this as an explicit implementation step because uploads need shared storage 
    ```yaml
    environment:
      DATABASE_PATH: ${DATABASE_PATH:?DATABASE_PATH}
-     UPLOAD_DIR: ${UPLOAD_DIR:-/uploads/dogs}
-     PUBLIC_UPLOAD_BASE: ${PUBLIC_UPLOAD_BASE:-/uploads/dogs}
+     DOG_IMAGE_UPLOAD_DIR: ${DOG_IMAGE_UPLOAD_DIR:-/uploads/dogs}
+     DOG_IMAGE_URL_BASE: ${DOG_IMAGE_URL_BASE:-/img/dogs}
    ```
 
 2. Add a persistent uploads volume mounted into the backend at `/uploads`:
@@ -288,8 +308,9 @@ Add this as an explicit implementation step because uploads need shared storage 
 5. Update `web/Caddyfile` to serve uploaded files before frontend fallback, for example:
 
    ```caddyfile
-   handle /uploads/dogs/* {
-       root * /uploads
+   handle /img/dogs/* {
+       uri strip_prefix /img/dogs
+       root * /uploads/dogs
        file_server
    }
    ```
@@ -307,14 +328,16 @@ Add this as an explicit implementation step because uploads need shared storage 
 
 ## Implementation steps
 
-1. Add `Config`, `Http`, and `Router` classes under `backend/src/`. Add Handlers directory, and stubs for the handlers.
-2. Replace the temporary `backend/public/index.php` health-only response with front-controller dispatch.
-3. Implement `GET /api/health`.
-4. Implement `GET /api/dogs` with a public-only SELECT and `photo_url` mapping.
-5. Implement `POST /api/submissions` text validation, upload validation, file storage, and pending insert.
-6. Update Compose and Caddy configuration for upload storage and serving.
-7. Update `.env.example` with `UPLOAD_DIR` and `PUBLIC_UPLOAD_BASE` defaults if they are not already present.
-8. Update README with API smoke-test commands and the manual moderation reminder.
+1. Done: confirmed no Caddy changes were needed to test `GET /api/health`; existing `/api/*` handlers in `web/Caddyfile` and `web/Caddyfile.dev` already route API requests to PHP-FPM.
+2. Done: added `Config`, `Http`, `Response`, and `Router` classes under `backend/src/`. `Config` now centralizes `DATABASE_PATH`, `DOG_IMAGE_UPLOAD_DIR`, and `DOG_IMAGE_URL_BASE`; `Database::connect()` uses `Config::databasePath()`.
+3. Done: added `backend/src/Handlers/HealthHandler.php`; no placeholder handlers or submission-only classes were created.
+4. Done: replaced the temporary `backend/public/index.php` health-only response with front-controller dispatch.
+5. Done: implemented `GET /api/health` via the route table. Routing and handlers now return `Response` objects; only `Http::send()` emits headers/body.
+6. Implement `GET /api/dogs` with a public-only SELECT and `photo_url` mapping. Add `DogsHandler.php` at this step.
+7. Implement `POST /api/submissions` text validation, upload validation, file storage, and pending insert. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` at this step.
+8. Update Compose and Caddy configuration for upload storage and serving.
+9. Done: update `.env.example` with `DOG_IMAGE_UPLOAD_DIR` and `DOG_IMAGE_URL_BASE` defaults.
+10. Update README with API smoke-test commands and the manual moderation reminder.
 
 ## Manual verification
 
@@ -328,7 +351,9 @@ In another terminal:
 
 ```sh
 curl -i http://localhost:8080/api/health
-curl -i http://localhost:8080/api/dogs
+curl -i -X POST http://localhost:8080/api/health  # should return 405
+curl -i http://localhost:8080/api/missing         # should return 404
+curl -i http://localhost:8080/api/dogs            # after GET /api/dogs is implemented
 ```
 
 Test submission with a local image:
