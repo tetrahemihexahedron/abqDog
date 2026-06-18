@@ -119,8 +119,6 @@ Create `Config.php` with environment-backed accessors:
 - `dogImageUploadDir()`: `DOG_IMAGE_UPLOAD_DIR`, default `/uploads/dogs`.
 - `dogImageUrlBase()`: `DOG_IMAGE_URL_BASE`, default `/img/dogs`.
 
-Do not add a configurable max-upload accessor yet; hardcode the first-version 5 MB limit in the upload handling when that endpoint is implemented.
-
 Normalize paths carefully:
 
 - `DOG_IMAGE_UPLOAD_DIR` should be a filesystem path where submitted dog images are stored.
