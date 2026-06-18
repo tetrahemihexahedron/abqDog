@@ -18,9 +18,9 @@ Implement a small JSON API behind PHP-FPM with explicit, easy-to-adjust routing.
 
 Initial public endpoints:
 
-- `GET /api/health`
-- `GET /api/dogs`
-- `POST /api/submissions`
+- `GET /data/health`
+- `GET /data/dogs`
+- `POST /data/submissions`
 
 The exact route strings should be centralized in one obvious place so they can be renamed later without hunting through controller code.
 
@@ -38,7 +38,7 @@ src/
     └── HealthHandler.php
 ```
 
-Add `DogsHandler.php` when implementing `GET /api/dogs`. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` only when implementing `POST /api/submissions`; do not create placeholder classes before they are needed.
+Add `DogsHandler.php` when implementing `GET /data/dogs`. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` only when implementing `POST /data/submissions`; do not create placeholder classes before they are needed.
 
 Keep `backend/public/index.php` as the front controller. It should only load Composer, build a route table, read the HTTP method/path, dispatch the request, convert uncaught exceptions to JSON 500 responses, and send the final `Response`.
 
@@ -50,13 +50,13 @@ Use a path-keyed route table with methods nested under each path:
 
 ```php
 $routes = [
-    '/api/health' => [
+    '/data/health' => [
         'GET' => [HealthHandler::class, 'show'],
     ],
-    '/api/dogs' => [
+    '/data/dogs' => [
         'GET' => [DogsHandler::class, 'index'],
     ],
-    '/api/submissions' => [
+    '/data/submissions' => [
         'POST' => [SubmissionsHandler::class, 'create'],
     ],
 ];
@@ -127,7 +127,7 @@ Normalize paths carefully:
 
 Using “image” terminology is fine and is a little clearer than “upload” for code that later serves approved dog photos. The main caveat is to remember these files originate from user uploads, so validation and moderation rules still need to treat them as untrusted input.
 
-## `GET /api/health`
+## `GET /data/health`
 
 Return:
 
@@ -137,7 +137,7 @@ Return:
 
 Keep this endpoint database-independent so it can tell whether PHP-FPM routing works even if the database is unavailable. A deeper database health check can be added later if needed.
 
-## `GET /api/dogs`
+## `GET /data/dogs`
 
 Return approved dogs only, newest first. Select only public fields:
 
@@ -171,7 +171,7 @@ Response shape:
 
 Do not return `photo_filename`, `owner_name`, `owner_email`, `status`, or filesystem paths.
 
-## `POST /api/submissions`
+## `POST /data/submissions`
 
 Accept `multipart/form-data` fields:
 
@@ -313,7 +313,7 @@ Add this as an explicit implementation step because uploads need shared storage 
    }
    ```
 
-   Keep the `/api/*` handler before the frontend fallback.
+   Keep the `/data/*` handler before the frontend fallback.
 
 6. Make equivalent development changes in `compose.dev.yml` and `web/Caddyfile.dev` if local submitted uploads need to be visible through Caddy during development.
 
@@ -326,13 +326,13 @@ Add this as an explicit implementation step because uploads need shared storage 
 
 ## Implementation steps
 
-1. Done: confirmed no Caddy changes were needed to test `GET /api/health`; existing `/api/*` handlers in `web/Caddyfile` and `web/Caddyfile.dev` already route API requests to PHP-FPM.
+1. Done: confirmed no Caddy changes were needed to test `GET /data/health`; existing `/data/*` handlers in `web/Caddyfile` and `web/Caddyfile.dev` already route API requests to PHP-FPM.
 2. Done: added `Config`, `Http`, `Response`, and `Router` classes under `backend/src/`. `Config` now centralizes `DATABASE_PATH`, `DOG_IMAGE_UPLOAD_DIR`, and `DOG_IMAGE_URL_BASE`; `Database::connect()` uses `Config::databasePath()`.
 3. Done: added `backend/src/Handlers/HealthHandler.php`; no placeholder handlers or submission-only classes were created.
 4. Done: replaced the temporary `backend/public/index.php` health-only response with front-controller dispatch.
-5. Done: implemented `GET /api/health` via the route table. Routing and handlers now return `Response` objects; only `Http::send()` emits headers/body.
-6. Implement `GET /api/dogs` with a public-only SELECT and `photo_url` mapping. Add `DogsHandler.php` at this step.
-7. Implement `POST /api/submissions` text validation, upload validation, file storage, and pending insert. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` at this step.
+5. Done: implemented `GET /data/health` via the route table. Routing and handlers now return `Response` objects; only `Http::send()` emits headers/body.
+6. Implement `GET /data/dogs` with a public-only SELECT and `photo_url` mapping. Add `DogsHandler.php` at this step.
+7. Implement `POST /data/submissions` text validation, upload validation, file storage, and pending insert. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` at this step.
 8. Update Compose and Caddy configuration for upload storage and serving.
 9. Done: update `.env.example` with `DOG_IMAGE_UPLOAD_DIR` and `DOG_IMAGE_URL_BASE` defaults.
 10. Update README with API smoke-test commands and the manual moderation reminder.
@@ -348,16 +348,16 @@ just dev
 In another terminal:
 
 ```sh
-curl -i http://localhost:8080/api/health
-curl -i -X POST http://localhost:8080/api/health  # should return 405
-curl -i http://localhost:8080/api/missing         # should return 404
-curl -i http://localhost:8080/api/dogs            # after GET /api/dogs is implemented
+curl -i http://localhost:8080/data/health
+curl -i -X POST http://localhost:8080/data/health  # should return 405
+curl -i http://localhost:8080/data/missing         # should return 404
+curl -i http://localhost:8080/data/dogs            # after GET /data/dogs is implemented
 ```
 
 Test submission with a local image:
 
 ```sh
-curl -i -X POST http://localhost:8080/api/submissions \
+curl -i -X POST http://localhost:8080/data/submissions \
   -F 'dog_name=Test Dog' \
   -F 'description=A friendly Albuquerque dog submitted during development.' \
   -F 'owner_name=Test Owner' \
@@ -372,7 +372,7 @@ Then check:
 just db-shell
 ```
 
-Verify the new row has `status = 'pending'` and that `GET /api/dogs` does not include it until manually approved.
+Verify the new row has `status = 'pending'` and that `GET /data/dogs` does not include it until manually approved.
 
 Also verify negative cases:
 
@@ -381,7 +381,7 @@ Also verify negative cases:
 - Missing photo returns `422` or `400`.
 - Oversized photo returns `413` where detectable.
 - Unsupported photo MIME returns `415`.
-- `GET /api/submissions` returns `405`.
+- `GET /data/submissions` returns `405`.
 - Unknown route returns `404`.
 
 ## Security and privacy notes

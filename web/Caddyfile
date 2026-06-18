@@ -1,5 +1,5 @@
 :80 {
-	handle /api/* {
+	handle /data/* {
 		root * /var/www/backend/public
 		rewrite * /index.php
 		php_fastcgi backend:9000

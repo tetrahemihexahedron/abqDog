@@ -6,8 +6,8 @@ Small PHP 8.5 JSON API for albuquerque.dog. It runs as PHP-FPM behind Caddy, use
 
 Initial routes:
 
-- `GET /api/health` returns a simple health response.
-- `GET /api/dogs` returns only approved dogs and must never expose private owner fields.
-- `POST /api/submissions` accepts multipart dog submissions, validates fields and one uploaded photo, stores the photo, and inserts a pending row.
+- `GET /data/health` returns a simple health response.
+- `GET /data/dogs` returns only approved dogs and must never expose private owner fields.
+- `POST /data/submissions` accepts multipart dog submissions, validates fields and one uploaded photo, stores the photo, and inserts a pending row.
 
 Use handwritten validation, prepared statements, environment-configured paths (`DATABASE_PATH`, `UPLOAD_DIR`, `PUBLIC_UPLOAD_BASE`), JSON error responses with appropriate status codes, and defensive upload handling. Owner name and email are private moderation/contact data only.

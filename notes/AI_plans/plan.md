@@ -152,13 +152,13 @@ Build a small PHP API with explicit route handling in `backend/public/index.php`
 
 Initial routes:
 
-- `GET /api/health`
+- `GET /data/health`
   - returns `{ "ok": true }`
-- `GET /api/dogs`
+- `GET /data/dogs`
   - returns approved dogs only
   - excludes private owner fields
   - returns a public `photo_url`, derived from `PUBLIC_UPLOAD_BASE` and `photo_filename`
-- `POST /api/submissions`
+- `POST /data/submissions`
   - accepts multipart form data
   - validates text fields
   - validates and stores one uploaded dog photo
@@ -210,7 +210,7 @@ Build the React app without a routing dependency.
 
 ## Phase 5: Landing page
 
-1. Fetch approved dogs from `GET /api/dogs`.
+1. Fetch approved dogs from `GET /data/dogs`.
 2. Display dog cards in a responsive grid.
 3. Each card should show:
    - photo
@@ -236,7 +236,7 @@ Fields:
 Behavior:
 
 1. Validate fields in TypeScript before submission.
-2. Use `FormData` to submit multipart data to `POST /api/submissions`.
+2. Use `FormData` to submit multipart data to `POST /data/submissions`.
 3. Show field-level validation messages where useful.
 4. Explain that owner name and email are private and only used for moderation/contact.
 5. Show a success message after submission.
@@ -249,7 +249,7 @@ Use Caddy as the public entrypoint.
 Caddy responsibilities:
 
 1. Serve the built React app from `/srv/www`.
-2. Route `/api/*` requests to PHP-FPM.
+2. Route `/data/*` requests to PHP-FPM.
 3. Serve uploaded dog images from `/uploads/dogs` under a public URL such as `/uploads/dogs/...`.
 4. For frontend routes, fall back to `index.html`.
 5. In production, handle HTTPS automatically for `albuquerque.dog`.

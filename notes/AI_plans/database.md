@@ -44,7 +44,7 @@ CREATE INDEX idx_dogs_created_at ON dogs(created_at);
 - `owner_name`: private, required; must not be returned by public endpoints.
 - `owner_email`: private, required; must not be returned by public endpoints.
 - `neighborhood`: public, optional.
-- `status`: moderation state. New submissions should be `pending`; only `approved` dogs appear in `GET /api/dogs`.
+- `status`: moderation state. New submissions should be `pending`; only `approved` dogs appear in `GET /data/dogs`.
 - `created_at` and `updated_at`: ISO-8601 UTC text timestamps.
 
 ## Migrations

@@ -28,7 +28,7 @@ Production uses `compose.yml`:
   - builds frontend assets in a Node/pnpm stage
   - copies built frontend assets into a pinned Caddy image
   - serves frontend routes from `/srv/www`
-  - routes `/api/*` to `php_fastcgi backend:9000`
+  - routes `/data/*` to `php_fastcgi backend:9000`
   - publishes `8080:80`
   - uses `init: true` and `restart: unless-stopped`
 - default network is explicitly named `abqdog`
@@ -50,7 +50,7 @@ docker compose -f compose.yml -f compose.dev.yml config
 docker compose build
 docker compose up -d
 curl http://localhost:8080/
-curl http://localhost:8080/api/
+curl http://localhost:8080/data/
 docker compose down
 ```
 
@@ -58,5 +58,5 @@ Verified results:
 
 - production images build successfully
 - frontend responds on `http://localhost:8080`
-- `/api/` returns `{"ok":true}` through Caddy/PHP-FPM
+- `/data/` returns `{"ok":true}` through Caddy/PHP-FPM
 - services stop cleanly with `docker compose down`

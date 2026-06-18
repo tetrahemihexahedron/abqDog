@@ -9,7 +9,7 @@ use AbqDog\Router;
 require __DIR__ . '/../vendor/autoload.php';
 
 $routes = [
-    '/api/health' => [
+    '/data/health' => [
         'GET' => [HealthHandler::class, 'show'],
     ],
 ];
