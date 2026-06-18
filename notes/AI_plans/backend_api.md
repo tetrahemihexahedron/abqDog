@@ -331,8 +331,13 @@ Add this as an explicit implementation step because uploads need shared storage 
 3. Done: added `backend/src/Handlers/HealthHandler.php`; no placeholder handlers or submission-only classes were created.
 4. Done: replaced the temporary `backend/public/index.php` health-only response with front-controller dispatch.
 5. Done: implemented `GET /data/health` via the route table. Routing and handlers now return `Response` objects; only `Http::send()` emits headers/body.
-6. Implement `GET /data/dogs` with a public-only SELECT and `photo_url` mapping. Add `DogsHandler.php` at this step.
-7. Implement `POST /data/submissions` text validation, upload validation, file storage, and pending insert. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` at this step.
+6. Done: implemented `GET /data/dogs` with a public-only SELECT and `photo_url` mapping. Added `DogsHandler.php`.
+7. Implement `POST /data/submissions` in substeps:
+   - Add `SubmissionsHandler.php` with an initial handler shape for multipart submissions.
+   - Register `POST /data/submissions` in the route table.
+   - Add `Validation.php` and implement text-field trimming and validation rules.
+   - Add `Uploads.php` and implement photo upload validation, MIME checks, filename generation, and file storage.
+   - Complete `SubmissionsHandler.php` with validation, upload handling, pending database insert, cleanup on insert failure, and `201` success response.
 8. Update Compose and Caddy configuration for upload storage and serving.
 9. Done: update `.env.example` with `DOG_IMAGE_UPLOAD_DIR` and `DOG_IMAGE_URL_BASE` defaults.
 10. Update README with API smoke-test commands and the manual moderation reminder.
