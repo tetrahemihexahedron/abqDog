@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use AbqDog\Handlers\DogsHandler;
 use AbqDog\Handlers\HealthHandler;
+use AbqDog\Handlers\SubmissionsHandler;
 use AbqDog\Http;
 use AbqDog\Router;
 
@@ -15,6 +16,9 @@ $routes = [
     ],
     '/data/dogs' => [
         'GET' => [DogsHandler::class, 'index'],
+    ],
+    '/data/submissions' => [
+        'POST' => [SubmissionsHandler::class, 'create'],
     ],
 ];
 
