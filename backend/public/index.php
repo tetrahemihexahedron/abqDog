@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use AbqDog\Handlers\DogsHandler;
 use AbqDog\Handlers\HealthHandler;
 use AbqDog\Http;
 use AbqDog\Router;
@@ -11,6 +12,9 @@ require __DIR__ . '/../vendor/autoload.php';
 $routes = [
     '/data/health' => [
         'GET' => [HealthHandler::class, 'show'],
+    ],
+    '/data/dogs' => [
+        'GET' => [DogsHandler::class, 'index'],
     ],
 ];
 
