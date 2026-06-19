@@ -7,7 +7,9 @@ namespace AbqDog\Handlers;
 use AbqDog\Database;
 use AbqDog\Dog;
 use AbqDog\Http;
+use AbqDog\Logger;
 use AbqDog\Response;
+use Throwable;
 
 final class SubmissionsHandler
 {
@@ -15,7 +17,13 @@ final class SubmissionsHandler
     {
         $dog = Dog::placeholderForSubmission();
 
-        self::insertDog($dog);
+        try {
+            self::insertDog($dog);
+        } catch (Throwable $exception) {
+            Logger::error('Failed to save dog submission.', $exception);
+
+            return Http::jsonError('Could not save submission.', 500);
+        }
 
         return Http::jsonResponse([
             'ok' => true,
