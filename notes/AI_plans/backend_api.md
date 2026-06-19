@@ -51,10 +51,10 @@ Use a path-keyed route table with methods nested under each path:
 ```php
 $routes = [
     '/data/health' => [
-        'GET' => [HealthHandler::class, 'show'],
+        'GET' => [HealthHandler::class, 'check'],
     ],
     '/data/dogs' => [
-        'GET' => [DogsHandler::class, 'index'],
+        'GET' => [DogsHandler::class, 'getApproved'],
     ],
     '/data/submissions' => [
         'POST' => [SubmissionsHandler::class, 'create'],
@@ -333,8 +333,8 @@ Add this as an explicit implementation step because uploads need shared storage 
 5. Done: implemented `GET /data/health` via the route table. Routing and handlers now return `Response` objects; only `Http::send()` emits headers/body.
 6. Done: implemented `GET /data/dogs` with a public-only SELECT and `photo_url` mapping. Added `DogsHandler.php`.
 7. Implement `POST /data/submissions` in substeps:
-   - Add `SubmissionsHandler.php` with an initial handler shape for multipart submissions.
-   - Register `POST /data/submissions` in the route table.
+   - Done: added `SubmissionsHandler.php` with an initial handler shape for multipart submissions.
+   - Done: registered `POST /data/submissions` in the route table.
    - Add `Validation.php` and implement text-field trimming and validation rules.
    - Add `Uploads.php` and implement photo upload validation, MIME checks, filename generation, and file storage.
    - Complete `SubmissionsHandler.php` with validation, upload handling, pending database insert, cleanup on insert failure, and `201` success response.

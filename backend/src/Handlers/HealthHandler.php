@@ -9,7 +9,7 @@ use AbqDog\Response;
 
 final class HealthHandler
 {
-    public static function show(): Response
+    public static function check(): Response
     {
         return Http::jsonResponse(['ok' => true]);
     }

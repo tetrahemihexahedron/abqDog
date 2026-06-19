@@ -12,10 +12,10 @@ require __DIR__ . '/../vendor/autoload.php';
 
 $routes = [
     '/data/health' => [
-        'GET' => [HealthHandler::class, 'show'],
+        'GET' => [HealthHandler::class, 'check'],
     ],
     '/data/dogs' => [
-        'GET' => [DogsHandler::class, 'index'],
+        'GET' => [DogsHandler::class, 'getApproved'],
     ],
     '/data/submissions' => [
         'POST' => [SubmissionsHandler::class, 'create'],

@@ -11,7 +11,7 @@ use AbqDog\Response;
 
 final class DogsHandler
 {
-    public static function index(): Response
+    public static function getApproved(): Response
     {
         $statement = Database::connect()->query(
             <<<'SQL'
