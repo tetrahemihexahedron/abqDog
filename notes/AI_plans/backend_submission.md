@@ -23,8 +23,6 @@ Accept `multipart/form-data` fields:
 
 ## Response shapes
 
-Use consistent success and error envelopes for this endpoint.
-
 Successful response, status `201`:
 
 ```json
@@ -38,7 +36,6 @@ Validation error response, status `422`:
 
 ```json
 {
-  "ok": false,
   "error": "Validation failed.",
   "fields": {
     "dog_name": "Dog name is required."
@@ -46,16 +43,15 @@ Validation error response, status `422`:
 }
 ```
 
-Other error responses should also include `ok: false`:
+Other error responses should use the shared error shape:
 
 ```json
 {
-  "ok": false,
   "error": "Unsupported image type."
 }
 ```
 
-This is more consistent than returning `ok` only on success. When implementing this, either update `Http::jsonError()` to include `ok: false` API-wide, or add a small submission-specific helper if changing every error response at once is undesirable.
+Only success responses include `ok`. Error responses should not include `ok`.
 
 Do not return owner name, owner email, uploaded filesystem paths, or moderation status. Returning the new database id is optional; if returned, treat it as an internal reference rather than a public dog page id.
 
@@ -198,11 +194,10 @@ Recommended behavior:
 - Catch database exceptions at the handler boundary where a submission response can still be chosen.
 - Log a generic server-side message and exception details with `error_log()` or the project’s chosen logger.
 - Do not log owner name, owner email, descriptions, raw submitted fields, uploaded filenames from the client, or full request payloads.
-- Return a JSON `500` response using the consistent error shape:
+- Return a JSON `500` response using the shared error shape:
 
 ```json
 {
-  "ok": false,
   "error": "Could not save submission."
 }
 ```
@@ -247,7 +242,7 @@ public ?ValidatedSubmissionText $value
 public array $errors
 ```
 
-Use status `422` for text validation failures and the consistent error shape described above.
+Use status `422` for text validation failures and the error shape described above.
 
 ### 6. Add upload validation and file storage
 
