@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace AbqDog;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use PDO;
 
 final class Database
 {
+    public static function now(): string
+    {
+        return (new DateTimeImmutable('now', new DateTimeZone('UTC')))
+            ->format('Y-m-d\\TH:i:s\\Z');
+    }
+
     public static function connect(): PDO
     {
         $pdo = new PDO('sqlite:' . Config::databasePath());
