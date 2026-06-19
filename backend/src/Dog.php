@@ -22,23 +22,48 @@ final readonly class Dog
     public static function fromDogSubmission(
         DogSubmission $submission
     ): self {
-        $now = self::utcTimestamp();
-
-        return new self(
+        return self::pending(
             $submission->dogName,
             $submission->description,
             $submission->photo->filename,
             $submission->ownerName,
             $submission->ownerEmail,
             $submission->neighborhood,
+        );
+    }
+
+    public static function placeholderForSubmission(): self
+    {
+        return self::pending(
+            'Placeholder Dog',
+            'Placeholder description until submission validation is implemented.',
+            'placeholder.jpg',
+            'Placeholder Owner',
+            'placeholder-owner@example.test',
+            null,
+        );
+    }
+
+    private static function pending(
+        string $dogName,
+        string $description,
+        string $photoFilename,
+        string $ownerName,
+        string $ownerEmail,
+        ?string $neighborhood,
+    ): self {
+        $now = Database::now();
+
+        return new self(
+            $dogName,
+            $description,
+            $photoFilename,
+            $ownerName,
+            $ownerEmail,
+            $neighborhood,
             'pending',
             $now,
             $now,
         );
-    }
-
-    private static function utcTimestamp(): string
-    {
-        return gmdate('Y-m-d\TH:i:s\Z');
     }
 }

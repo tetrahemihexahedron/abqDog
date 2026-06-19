@@ -13,18 +13,7 @@ final class SubmissionsHandler
 {
     public static function create(): Response
     {
-        $now = self::utcTimestamp();
-        $dog = new Dog(
-            'Placeholder Dog',
-            'Placeholder description until submission validation is implemented.',
-            'placeholder.jpg',
-            'Placeholder Owner',
-            'placeholder-owner@example.test',
-            null,
-            'pending',
-            $now,
-            $now,
-        );
+        $dog = Dog::placeholderForSubmission();
 
         self::insertDog($dog);
 
@@ -76,10 +65,5 @@ final class SubmissionsHandler
         ]);
 
         return (int) $pdo->lastInsertId();
-    }
-
-    private static function utcTimestamp(): string
-    {
-        return gmdate('Y-m-d\\TH:i:s\\Z');
     }
 }

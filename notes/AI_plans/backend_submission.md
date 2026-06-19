@@ -123,7 +123,7 @@ public static function fromRequest(Request $request, DogPhoto $photo): self
 final readonly class Dog
 ```
 
-`Dog` is the object passed to the database insert helper. It represents a dog row ready for persistence. It is similar to `DogSubmission`, but adds `status`, `createdAt`, and `updatedAt`. Build it from a valid `DogSubmission`; `fromDogSubmission()` should assign the submission-specific status and timestamps internally.
+`Dog` is the object passed to the database insert helper. It represents a dog row ready for persistence. It is similar to `DogSubmission`, but adds `status`, `createdAt`, and `updatedAt`. Build it from a valid `DogSubmission`; `fromDogSubmission()` should assign the submission-specific status and timestamps internally using `Database::now()`.
 
 Suggested constructor and factory signatures:
 
@@ -235,14 +235,12 @@ INSERT INTO dogs (
 );
 ```
 
-Use one UTC ISO-8601 timestamp value for both `created_at` and `updated_at`.
+Store `created_at` and `updated_at` as UTC ISO-8601 text values, matching the existing schema and public API format. Prefer this over changing to UNIX timestamp integers because the current strings are human-readable, lexicographically sortable in SQLite when consistently formatted, and can be returned directly by `GET /data/dogs`. Generate database timestamps through `Database::now()`, implemented with PHP's `DateTimeImmutable` and `DateTimeZone('UTC')`. The global PHP timezone is also set to UTC in `backend/php.ini` as a baseline, but persisted timestamps should still use the explicit database helper.
 
-Implemented helper method signatures:
+Implemented helper method signature:
 
 ```php
 private static function insertDog(Dog $dog): int
-
-private static function utcTimestamp(): string
 ```
 
 `insertDog()` should return the inserted id if convenient, even if the API does not expose it yet. Keep it private on `SubmissionsHandler` for now, but write it so it can move to a repository later without changing the SQL behavior.
