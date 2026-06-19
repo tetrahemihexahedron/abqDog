@@ -6,6 +6,7 @@ use AbqDog\Handlers\DogsHandler;
 use AbqDog\Handlers\HealthHandler;
 use AbqDog\Handlers\SubmissionsHandler;
 use AbqDog\Http;
+use AbqDog\Logger;
 use AbqDog\Router;
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -27,7 +28,8 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 
 try {
     $response = (new Router($routes))->dispatch($method, $path);
-} catch (Throwable) {
+} catch (Throwable $exception) {
+    Logger::error('Unhandled API exception.', $exception);
     $response = Http::jsonError('Internal server error.', 500);
 }
 
