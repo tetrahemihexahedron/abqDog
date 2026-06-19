@@ -2,14 +2,6 @@
 
 This document expands step 7 of `backend_api.md`: implement `POST /data/submissions`.
 
-## Current status
-
-Done:
-
-- Added `backend/src/Handlers/SubmissionsHandler.php`.
-- Registered `POST /data/submissions` in the route table in `backend/public/index.php`.
-- The initial handler method is `SubmissionsHandler::create()` and currently exists as a placeholder until the remaining substeps are implemented.
-
 ## Endpoint contract
 
 Route:
@@ -29,7 +21,11 @@ Accept `multipart/form-data` fields:
 - `owner_email`
 - `neighborhood` optional
 
-Successful response:
+## Response shapes
+
+Use consistent success and error envelopes for this endpoint.
+
+Successful response, status `201`:
 
 ```json
 {
@@ -38,15 +34,124 @@ Successful response:
 }
 ```
 
-Use status `201`. Do not return owner name, owner email, uploaded filesystem paths, or moderation status. Returning the new database id is optional; if returned, treat it as an internal reference rather than a public dog page id.
+Validation error response, status `422`:
 
-## Implementation order
+```json
+{
+  "ok": false,
+  "error": "Validation failed.",
+  "fields": {
+    "dog_name": "Dog name is required."
+  }
+}
+```
 
-### 1. Add pending database insert
+Other error responses should also include `ok: false`:
 
-First complete the happy-path insert in `SubmissionsHandler::create()` using simple trusted placeholder values for fields that will later come from validation and upload storage. This makes it possible to verify database wiring before adding validation complexity.
+```json
+{
+  "ok": false,
+  "error": "Unsupported image type."
+}
+```
 
-Use `AbqDog\Database::connect()` and a prepared statement. Insert pending rows only:
+This is more consistent than returning `ok` only on success. When implementing this, either update `Http::jsonError()` to include `ok: false` API-wide, or add a small submission-specific helper if changing every error response at once is undesirable.
+
+Do not return owner name, owner email, uploaded filesystem paths, or moderation status. Returning the new database id is optional; if returned, treat it as an internal reference rather than a public dog page id.
+
+## Data objects
+
+Prefer small data objects over passing large associative arrays between validation, upload handling, and database insertion.
+
+Suggested classes:
+
+```php
+final readonly class ValidatedSubmissionText
+```
+
+Suggested constructor shape:
+
+```php
+public function __construct(
+    public string $dogName,
+    public string $description,
+    public string $ownerName,
+    public string $ownerEmail,
+    public ?string $neighborhood,
+)
+```
+
+```php
+final readonly class StoredDogPhoto
+```
+
+Suggested constructor shape:
+
+```php
+public function __construct(
+    public string $filename,
+    public string $path,
+)
+```
+
+```php
+final readonly class DogInsertData
+```
+
+Suggested constructor shape:
+
+```php
+public function __construct(
+    public string $dogName,
+    public string $description,
+    public string $photoFilename,
+    public string $ownerName,
+    public string $ownerEmail,
+    public ?string $neighborhood,
+    public string $status,
+    public string $createdAt,
+    public string $updatedAt,
+)
+```
+
+`DogInsertData` is the object passed to the database insert helper. The handler should set `status` to `'pending'` before calling the helper so the insert helper can remain a more general `insertDog()` operation and later move easily to a `Dog` model or repository.
+
+For operations that can fail without throwing, use result objects rather than mixed arrays.
+
+Suggested result class names:
+
+```php
+final readonly class SubmissionTextValidationResult
+final readonly class PhotoUploadResult
+```
+
+## Implementation steps
+
+### 1. Done: add initial handler shape
+
+`backend/src/Handlers/SubmissionsHandler.php` exists with this handler method:
+
+```php
+public static function create(): Response
+```
+
+The method currently exists as a placeholder until the remaining steps are implemented.
+
+### 2. Done: register the route
+
+`backend/public/index.php` contains:
+
+```php
+'/data/submissions' => [
+    'POST' => [SubmissionsHandler::class, 'create'],
+],
+```
+
+### 3. Add pending database insert
+
+First complete the happy-path insert in `SubmissionsHandler::create()` using trusted placeholder values for fields that will later come from validation and upload storage. This makes it possible to verify database wiring before adding validation complexity.
+
+Use `AbqDog\Database::connect()` and a prepared statement. Insert rows with the status supplied by `DogInsertData`; the handler should set that status to `'pending'` for public submissions.
 
 ```sql
 INSERT INTO dogs (
@@ -66,7 +171,7 @@ INSERT INTO dogs (
   :owner_name,
   :owner_email,
   :neighborhood,
-  'pending',
+  :status,
   :created_at,
   :updated_at
 );
@@ -74,26 +179,45 @@ INSERT INTO dogs (
 
 Use one UTC ISO-8601 timestamp value for both `created_at` and `updated_at`.
 
-Suggested handler method signature:
+Suggested helper method signatures:
 
 ```php
-public static function create(): Response
-```
-
-Optional helper method signatures if the handler starts to get crowded:
-
-```php
-/** @param array<string, string|null> $submission */
-private static function insertPendingSubmission(array $submission, string $photoFilename): void
+private static function insertDog(DogInsertData $dog): int
 
 private static function utcTimestamp(): string
 ```
 
-Keep the route response shape stable while implementing later substeps.
+`insertDog()` should return the inserted id if convenient, even if the API does not expose it yet. Keep it private on `SubmissionsHandler` for now, but write it so it can move to a `Dog` model or repository later without changing the SQL behavior.
 
-### 2. Add text-field validation
+### 4. Handle database insertion errors and logging
 
-Add `backend/src/Validation.php` after the insert path is in place. Keep text validation independent from uploads so it can be tested without file fixtures.
+After the insert works on the happy path, add explicit error handling around database insertion before adding validation and upload complexity.
+
+Recommended behavior:
+
+- Catch database exceptions at the handler boundary where a submission response can still be chosen.
+- Log a generic server-side message and exception details with `error_log()` or the project’s chosen logger.
+- Do not log owner name, owner email, descriptions, raw submitted fields, uploaded filenames from the client, or full request payloads.
+- Return a JSON `500` response using the consistent error shape:
+
+```json
+{
+  "ok": false,
+  "error": "Could not save submission."
+}
+```
+
+If `public/index.php` is the only current unexpected-exception logger and it does not log details, add appropriate logging there or in this handler step so insertion failures are diagnosable without exposing private data to clients.
+
+Suggested helper method signature:
+
+```php
+private static function logSubmissionInsertFailure(Throwable $exception): void
+```
+
+### 5. Add text-field validation
+
+Add `backend/src/Validation.php` after the insert path and insertion-error handling are in place. Keep text validation independent from uploads so it can be tested without file fixtures.
 
 Rules:
 
@@ -108,29 +232,24 @@ Rules:
 Suggested method signatures:
 
 ```php
-/**
- * @param array<string, mixed> $input
- * @return array{values: array<string, string|null>, errors: array<string, string>}
- */
-public static function validateSubmissionText(array $input): array
+/** @param array<string, mixed> $input */
+public static function validateSubmissionText(array $input): SubmissionTextValidationResult
 
 public static function hasDisallowedControlCharacters(string $value): bool
 ```
 
-Return validation errors as field-addressable JSON, for example:
+Suggested result accessors or properties:
 
-```json
-{
-  "error": "Validation failed.",
-  "fields": {
-    "dog_name": "Dog name is required."
-  }
-}
+```php
+public ?ValidatedSubmissionText $value
+
+/** @var array<string, string> */
+public array $errors
 ```
 
-Use status `422` for text validation failures.
+Use status `422` for text validation failures and the consistent error shape described above.
 
-### 3. Add upload validation and file storage
+### 6. Add upload validation and file storage
 
 Add `backend/src/Uploads.php` after text validation is working. Keep upload validation and storage in one small class because the validation result determines the generated stored filename.
 
@@ -152,15 +271,20 @@ Rules:
 Suggested method signatures:
 
 ```php
-/**
- * @param array<string, mixed> $files
- * @return array{filename?: string, path?: string, error?: string, status?: int}
- */
-public static function storeDogPhoto(array $files): array
+/** @param array<string, mixed> $files */
+public static function storeDogPhoto(array $files): PhotoUploadResult
 
 public static function ensureUploadDirectory(): void
 
 public static function extensionForMimeType(string $mimeType): ?string
+```
+
+Suggested result accessors or properties:
+
+```php
+public ?StoredDogPhoto $photo
+public ?string $error
+public int $status
 ```
 
 Expected error statuses:
@@ -170,20 +294,26 @@ Expected error statuses:
 - `415` for unsupported image MIME types.
 - `422` for a missing required photo or incomplete upload.
 
-### 4. Integrate validation, upload storage, and insert cleanup
+### 7. Complete handler integration and cleanup
 
 Complete `SubmissionsHandler::create()` by replacing placeholder insert values with:
 
 1. Validate `$_POST` text fields.
 2. Store the uploaded photo from `$_FILES`.
-3. Insert a pending database row with the validated text values and stored photo filename.
-4. If the database insert fails after moving the uploaded file, delete the uploaded file before returning or rethrowing an error.
-5. Return the `201` success response.
+3. Build a `DogInsertData` instance from `ValidatedSubmissionText`, `StoredDogPhoto`, status `'pending'`, and timestamps.
+4. Insert the dog with `insertDog()`.
+5. If the database insert fails after moving the uploaded file, delete the uploaded file before returning an error.
+6. Return the `201` success response.
 
-Suggested helper method signature for cleanup:
+Suggested helper method signatures:
 
 ```php
-private static function deleteStoredPhotoIfPresent(?string $path): void
+private static function buildPendingDogInsertData(
+    ValidatedSubmissionText $text,
+    StoredDogPhoto $photo,
+): DogInsertData
+
+private static function deleteStoredPhotoIfPresent(?StoredDogPhoto $photo): void
 ```
 
 Do not log owner name, owner email, or raw submitted values.
@@ -217,6 +347,7 @@ Negative cases to verify:
 - Missing photo returns `422` or `400`.
 - Oversized photo returns `413` where detectable.
 - Unsupported photo MIME returns `415`.
+- Database insertion failure is logged server-side and returns `500` without private data.
 - `GET /data/submissions` returns `405`.
 - Unknown route returns `404`.
 
@@ -224,5 +355,6 @@ Negative cases to verify:
 
 - Do not expose pending or rejected submissions from `GET /data/dogs`.
 - Do not expose `owner_name`, `owner_email`, `photo_filename`, or internal filesystem paths.
+- Do not log owner name, owner email, descriptions, raw submitted values, or full request payloads.
 - Do not add CORS for version 1; the frontend and API are same-origin behind Caddy.
 - Treat uploaded files as untrusted even after MIME validation and moderator approval.

@@ -173,7 +173,7 @@ Do not return `photo_filename`, `owner_name`, `owner_email`, `status`, or filesy
 
 ## `POST /data/submissions`
 
-Detailed implementation notes for the submissions route live in `backend_submission.md`. Keep this endpoint responsible for accepting multipart dog submissions, storing one uploaded photo, inserting a pending row, and returning a `201` JSON response without exposing private owner fields.
+Detailed implementation notes for the submissions route live in [`backend_submission.md`](obsidian://open?vault=AI_plans&file=backend_submission). Keep this endpoint responsible for accepting multipart dog submissions, storing one uploaded photo, inserting a pending row, and returning a `201` JSON response without exposing private owner fields.
 
 ## Caddy and Docker updates
 
@@ -235,13 +235,7 @@ Add this as an explicit implementation step because uploads need shared storage 
 4. Done: replaced the temporary `backend/public/index.php` health-only response with front-controller dispatch.
 5. Done: implemented `GET /data/health` via the route table. Routing and handlers now return `Response` objects; only `Http::send()` emits headers/body.
 6. Done: implemented `GET /data/dogs` with a public-only SELECT and `photo_url` mapping. Added `DogsHandler.php`.
-7. Implement `POST /data/submissions`; see `backend_submission.md` for detailed notes and suggested method signatures.
-   - Done: added `SubmissionsHandler.php` with an initial handler shape for multipart submissions.
-   - Done: registered `POST /data/submissions` in the route table.
-   - Add the pending database insert path in `SubmissionsHandler::create()`.
-   - Add `Validation.php` and implement text-field trimming and validation rules.
-   - Add `Uploads.php` and implement photo upload validation, MIME checks, filename generation, and file storage.
-   - Complete `SubmissionsHandler::create()` with validation, upload handling, pending database insert, cleanup on insert failure, and `201` success response.
+7. Implement `POST /data/submissions`; see `backend_submission.md` for the detailed implementation steps, response-shape notes, data object suggestions, and suggested method signatures.
 8. Update Compose and Caddy configuration for upload storage and serving.
 9. Done: update `.env.example` with `DOG_IMAGE_UPLOAD_DIR` and `DOG_IMAGE_URL_BASE` defaults.
 10. Update README with API smoke-test commands and the manual moderation reminder.
