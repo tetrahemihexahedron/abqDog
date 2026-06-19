@@ -245,14 +245,14 @@ private static function insertDog(Dog $dog): int
 
 `insertDog()` should return the inserted id if convenient, even if the API does not expose it yet. Keep it private on `SubmissionsHandler` for now, but write it so it can move to a repository later without changing the SQL behavior.
 
-### 5. Handle database insertion errors and logging
+### 5. Done: handled database insertion errors and added logging
 
-After the insert works on the happy path, add explicit error handling around database insertion before adding validation and upload complexity.
+Added `backend/src/Logger.php` as a small wrapper around `error_log()`. `SubmissionsHandler::create()` now catches insertion failures, logs a generic server-side message with exception details, and returns a submission-specific `500` response before validation and upload complexity are added. `public/index.php` also logs unexpected uncaught API exceptions.
 
-Recommended behavior:
+Implemented behavior:
 
-- Catch database exceptions at the handler boundary where a submission response can still be chosen.
-- Log a generic server-side message and exception details with `error_log()` or the project’s chosen logger.
+- Catch insertion exceptions at the handler boundary where a submission response can still be chosen.
+- Log a generic server-side message and exception details through `Logger::error()`.
 - Do not log owner name, owner email, descriptions, raw submitted fields, uploaded filenames from the client, or full request payloads.
 - Return a JSON `500` response using the shared error shape:
 
@@ -262,13 +262,7 @@ Recommended behavior:
 }
 ```
 
-If `public/index.php` is the only current unexpected-exception logger and it does not log details, add appropriate logging there or in this handler step so insertion failures are diagnosable without exposing private data to clients.
-
-Suggested helper method signature:
-
-```php
-private static function logSubmissionInsertFailure(Throwable $exception): void
-```
+No submission-specific logging helper is needed for now; call `Logger::error()` directly at the single insertion-failure catch site.
 
 ### 6. Add request text validation
 
