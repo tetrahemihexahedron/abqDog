@@ -63,7 +63,7 @@ final class SubmissionsHandler
         $statement->execute([
             ':dog_name' => $dog->dogName,
             ':description' => $dog->description,
-            ':photo_filename' => $dog->photoFilename,
+            ':photo_filename' => $dog->photo->filename,
             ':owner_name' => $dog->ownerName,
             ':owner_email' => $dog->ownerEmail,
             ':neighborhood' => $dog->neighborhood,

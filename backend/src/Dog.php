@@ -9,7 +9,7 @@ final readonly class Dog
     public function __construct(
         public string $dogName,
         public string $description,
-        public string $photoFilename,
+        public DogPhoto $photo,
         public string $ownerName,
         public string $ownerEmail,
         public ?string $neighborhood,
@@ -25,7 +25,7 @@ final readonly class Dog
         return self::pending(
             $submission->dogName,
             $submission->description,
-            $submission->photo->filename,
+            $submission->photo,
             $submission->ownerName,
             $submission->ownerEmail,
             $submission->neighborhood,
@@ -37,7 +37,7 @@ final readonly class Dog
         return self::pending(
             'Placeholder Dog',
             'Placeholder description until submission validation is implemented.',
-            'placeholder.jpg',
+            new DogPhoto('placeholder.jpg'),
             'Placeholder Owner',
             'placeholder-owner@example.test',
             null,
@@ -47,7 +47,7 @@ final readonly class Dog
     private static function pending(
         string $dogName,
         string $description,
-        string $photoFilename,
+        DogPhoto $photo,
         string $ownerName,
         string $ownerEmail,
         ?string $neighborhood,
@@ -57,7 +57,7 @@ final readonly class Dog
         return new self(
             $dogName,
             $description,
-            $photoFilename,
+            $photo,
             $ownerName,
             $ownerEmail,
             $neighborhood,
