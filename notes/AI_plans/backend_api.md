@@ -38,7 +38,7 @@ src/
     └── HealthHandler.php
 ```
 
-Add `DogsHandler.php` when implementing `GET /data/dogs`. Add `Validation.php`, `Uploads.php`, and `SubmissionsHandler.php` only when implementing `POST /data/submissions`; do not create placeholder classes before they are needed.
+`DogsHandler.php` and an initial `SubmissionsHandler.php` now exist. Add `Validation.php` and `Uploads.php` only when implementing their corresponding `POST /data/submissions` substeps; do not create unrelated placeholder classes before they are needed.
 
 Keep `backend/public/index.php` as the front controller. It should only load Composer, build a route table, read the HTTP method/path, dispatch the request, convert uncaught exceptions to JSON 500 responses, and send the final `Response`.
 
@@ -173,104 +173,7 @@ Do not return `photo_filename`, `owner_name`, `owner_email`, `status`, or filesy
 
 ## `POST /data/submissions`
 
-Accept `multipart/form-data` fields:
-
-- `dog_name`
-- `description`
-- `photo`
-- `owner_name`
-- `owner_email`
-- `neighborhood` optional
-
-### Text validation
-
-Implement in `Validation.php`. Suggested first-version rules:
-
-- Trim all string fields.
-- `dog_name`: required, 1-80 characters.
-- `description`: required, 10-500 characters.
-- `owner_name`: required, 1-120 characters.
-- `owner_email`: required, valid email, max 254 characters.
-- `neighborhood`: optional, max 120 characters; store `NULL` if blank.
-- Reject control characters except normal whitespace.
-
-Return validation errors as field-addressable JSON, for example:
-
-```json
-{
-  "error": "Validation failed.",
-  "fields": {
-    "dog_name": "Dog name is required."
-  }
-}
-```
-
-### Upload validation and storage
-
-Implement in `Uploads.php`.
-
-Rules:
-
-1. Require exactly one uploaded file under the `photo` field.
-2. Reject missing, empty, partial, or multiple uploads.
-3. Reject files larger than 5 MB.
-4. Validate MIME type with `finfo_file`, not the client filename or `$_FILES['photo']['type']`.
-5. Accept only:
-   - `image/jpeg` -> `.jpg`
-   - `image/png` -> `.png`
-   - `image/webp` -> `.webp`
-6. Generate the stored filename server-side, for example:
-
-   ```php
-   bin2hex(random_bytes(16)) . $extension
-   ```
-
-7. Ensure `DOG_IMAGE_UPLOAD_DIR` exists and is writable; create it if needed.
-8. Store with `move_uploaded_file` only.
-9. On database insert failure after moving a file, delete the uploaded file before returning an error.
-
-Do not preserve user-provided filenames.
-
-### Database insert
-
-Use `AbqDog\Database::connect()` and a prepared statement:
-
-```sql
-INSERT INTO dogs (
-  dog_name,
-  description,
-  photo_filename,
-  owner_name,
-  owner_email,
-  neighborhood,
-  status,
-  created_at,
-  updated_at
-) VALUES (
-  :dog_name,
-  :description,
-  :photo_filename,
-  :owner_name,
-  :owner_email,
-  :neighborhood,
-  'pending',
-  :created_at,
-  :updated_at
-);
-```
-
-Use one UTC ISO-8601 timestamp value for both `created_at` and `updated_at`.
-
-Successful response:
-
-```json
-{
-  "ok": true,
-  "message": "Submission received."
-}
-```
-
-Use status `201`. Do not return private fields. Returning the new database id is optional; if returned, treat it as an internal reference, not a public dog page id yet.
+Detailed implementation notes for the submissions route live in `backend_submission.md`. Keep this endpoint responsible for accepting multipart dog submissions, storing one uploaded photo, inserting a pending row, and returning a `201` JSON response without exposing private owner fields.
 
 ## Caddy and Docker updates
 
@@ -332,12 +235,13 @@ Add this as an explicit implementation step because uploads need shared storage 
 4. Done: replaced the temporary `backend/public/index.php` health-only response with front-controller dispatch.
 5. Done: implemented `GET /data/health` via the route table. Routing and handlers now return `Response` objects; only `Http::send()` emits headers/body.
 6. Done: implemented `GET /data/dogs` with a public-only SELECT and `photo_url` mapping. Added `DogsHandler.php`.
-7. Implement `POST /data/submissions` in substeps:
+7. Implement `POST /data/submissions`; see `backend_submission.md` for detailed notes and suggested method signatures.
    - Done: added `SubmissionsHandler.php` with an initial handler shape for multipart submissions.
    - Done: registered `POST /data/submissions` in the route table.
+   - Add the pending database insert path in `SubmissionsHandler::create()`.
    - Add `Validation.php` and implement text-field trimming and validation rules.
    - Add `Uploads.php` and implement photo upload validation, MIME checks, filename generation, and file storage.
-   - Complete `SubmissionsHandler.php` with validation, upload handling, pending database insert, cleanup on insert failure, and `201` success response.
+   - Complete `SubmissionsHandler::create()` with validation, upload handling, pending database insert, cleanup on insert failure, and `201` success response.
 8. Update Compose and Caddy configuration for upload storage and serving.
 9. Done: update `.env.example` with `DOG_IMAGE_UPLOAD_DIR` and `DOG_IMAGE_URL_BASE` defaults.
 10. Update README with API smoke-test commands and the manual moderation reminder.
@@ -356,38 +260,10 @@ In another terminal:
 curl -i http://localhost:8080/data/health
 curl -i -X POST http://localhost:8080/data/health  # should return 405
 curl -i http://localhost:8080/data/missing         # should return 404
-curl -i http://localhost:8080/data/dogs            # after GET /data/dogs is implemented
+curl -i http://localhost:8080/data/dogs
 ```
 
-Test submission with a local image:
-
-```sh
-curl -i -X POST http://localhost:8080/data/submissions \
-  -F 'dog_name=Test Dog' \
-  -F 'description=A friendly Albuquerque dog submitted during development.' \
-  -F 'owner_name=Test Owner' \
-  -F 'owner_email=test@example.com' \
-  -F 'neighborhood=Nob Hill' \
-  -F 'photo=@/path/to/test-image.webp'
-```
-
-Then check:
-
-```sh
-just db-shell
-```
-
-Verify the new row has `status = 'pending'` and that `GET /data/dogs` does not include it until manually approved.
-
-Also verify negative cases:
-
-- Missing required text field returns `422`.
-- Invalid email returns `422`.
-- Missing photo returns `422` or `400`.
-- Oversized photo returns `413` where detectable.
-- Unsupported photo MIME returns `415`.
-- `GET /data/submissions` returns `405`.
-- Unknown route returns `404`.
+See `backend_submission.md` for submission-specific smoke tests and negative cases.
 
 ## Security and privacy notes
 
