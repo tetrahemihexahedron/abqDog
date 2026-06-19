@@ -205,9 +205,9 @@ public function __construct(
 public static function fromGlobals(): self
 ```
 
-### 4. Add `Dog` and the pending database insert
+### 4. Done: added `Dog` and the pending database insert
 
-Add the `Dog` model and complete the happy-path insert in `SubmissionsHandler::create()` using trusted placeholder values for fields that will later come from validation and upload storage. This makes it possible to verify database wiring before adding validation complexity.
+Added `backend/src/Dog.php` and completed the happy-path insert in `SubmissionsHandler::create()` using trusted placeholder values for fields that will later come from validation and upload storage. This makes it possible to verify database wiring before adding validation complexity.
 
 Use `AbqDog\Database::connect()` and a prepared statement. Insert rows with the status supplied by `Dog`. For public submissions, `Dog::fromDogSubmission()` should assign `status` to `'pending'` and set `createdAt` and `updatedAt`.
 
@@ -237,7 +237,7 @@ INSERT INTO dogs (
 
 Use one UTC ISO-8601 timestamp value for both `created_at` and `updated_at`.
 
-Suggested helper method signatures:
+Implemented helper method signatures:
 
 ```php
 private static function insertDog(Dog $dog): int
