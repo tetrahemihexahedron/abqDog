@@ -131,7 +131,7 @@ Suggested constructor and factory signatures:
 public function __construct(
     public string $dogName,
     public string $description,
-    public string $photoFilename,
+    public DogPhoto $photo,
     public string $ownerName,
     public string $ownerEmail,
     public ?string $neighborhood,
@@ -264,9 +264,9 @@ Implemented behavior:
 
 No submission-specific logging helper is needed for now; call `Logger::error()` directly at the single insertion-failure catch site.
 
-### 6. Add request text validation
+### 6. Done: added request text validation
 
-Add the text validation needed by `DogSubmission::fromRequest()` after the insert path and insertion-error handling are in place. The factory can be tested with a `Request` containing post data and a dummy valid `DogPhoto`, so these validation tests do not need real uploaded file fixtures.
+Added `DogPhoto`, `DogSubmission`, and `SubmissionValidationException`. `DogSubmission::fromRequest()` performs text validation after the insert path and insertion-error handling are in place. The factory can be tested with a `Request` containing post data and a dummy valid `DogPhoto`, so these validation tests do not need real uploaded file fixtures.
 
 Rules:
 
@@ -278,15 +278,15 @@ Rules:
 - `neighborhood`: optional, max 120 characters; store `NULL` if blank.
 - Reject control characters except normal whitespace.
 
-Suggested method signatures:
+Implemented method signatures:
 
 ```php
 public static function fromRequest(Request $request, DogPhoto $photo): self
 
-public static function hasDisallowedControlCharacters(string $value): bool
+private static function hasBadCharacters(string $value): bool
 ```
 
-If validation fails, throw `SubmissionValidationException` with field-addressable errors. The handler should catch it and return status `422` with the error shape described above.
+Keep low-level text helpers private on `DogSubmission` for now; extracting a separate text-validation service would be premature unless the rules need to be reused elsewhere. In validation `switch (true)` blocks, check blank values first and bad/control characters before length or format checks so hidden unsupported characters are reported clearly. If validation fails, throw `SubmissionValidationException` with field-addressable errors. The handler should catch it and return status `422` with the error shape described above.
 
 ### 7. Add upload validation and file storage
 
