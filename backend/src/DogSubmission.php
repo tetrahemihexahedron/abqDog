@@ -20,7 +20,7 @@ final readonly class DogSubmission
     {
         $fields = [];
 
-        $dogName = self::stringField($request, 'dog_name');
+        $dogName = self::fieldValueAsString($request, 'dog_name');
         switch (true) {
             case self::isBlank($dogName):
                 $fields['dog_name'] = "Please enter the pup's name.";
@@ -33,7 +33,7 @@ final readonly class DogSubmission
                 break;
         }
 
-        $description = self::stringField($request, 'description');
+        $description = self::fieldValueAsString($request, 'description');
         switch (true) {
             case self::isBlank($description):
                 $fields['description'] = "Every good dog deserves a little intro! Please write a short description.";
@@ -49,7 +49,7 @@ final readonly class DogSubmission
                 break;
         }
 
-        $ownerName = self::stringField($request, 'owner_name');
+        $ownerName = self::fieldValueAsString($request, 'owner_name');
         switch (true) {
             case self::isBlank($ownerName):
                 $fields['owner_name'] = "Please enter the name of the dog's human.";
@@ -62,7 +62,7 @@ final readonly class DogSubmission
                 break;
         }
 
-        $ownerEmail = self::stringField($request, 'owner_email');
+        $ownerEmail = self::fieldValueAsString($request, 'owner_email');
         switch (true) {
             case self::isBlank($ownerEmail):
                 $fields['owner_email'] = "Please enter your email.";
@@ -78,7 +78,7 @@ final readonly class DogSubmission
                 break;
         }
 
-        $neighborhood = self::stringField($request, 'neighborhood');
+        $neighborhood = self::fieldValueAsString($request, 'neighborhood');
         $neighborhoodValue = self::isBlank($neighborhood) ? null : $neighborhood;
         if ($neighborhoodValue !== null) {
             switch (true) {
@@ -98,7 +98,7 @@ final readonly class DogSubmission
         return new self($dogName, $description, $ownerName, $ownerEmail, $neighborhoodValue, $photo);
     }
 
-    private static function stringField(Request $request, string $field): string
+    private static function fieldValueAsString(Request $request, string $field): string
     {
         $value = $request->post[$field] ?? '';
 
