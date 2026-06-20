@@ -23,3 +23,4 @@ Use handwritten validation, prepared statements, environment-configured paths, J
 - Store database timestamps as UTC ISO-8601 text strings matching the existing SQLite schema and public API. Use `Database::now()` for persisted timestamps. `backend/php.ini` should set `date.timezone = UTC` as a baseline.
 - Use a tiny `Logger` wrapper around `error_log()` rather than adding a logging dependency for now. Do not log owner name, owner email, raw submitted fields, uploaded client filenames, or full request payloads.
 - Success responses may include `ok: true`; error responses use the shared `{ "error": "..." }` shape and should not include `ok`.
+- Write user-friendly, playful and specific validation error messages.
