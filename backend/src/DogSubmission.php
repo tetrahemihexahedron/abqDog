@@ -28,7 +28,7 @@ final readonly class DogSubmission
             case self::isLongerThan($dogName, 80):
                 $fields['dog_name'] = "Wow, that's long! We can't record or display a name that long. Please supply a shorter name, no more than 80 characters.";
                 break;
-            case self::hasDisallowedControlCharacters($dogName):
+            case self::hasBadCharacters($dogName):
                 $fields['dog_name'] = "There are some weird characters in that name. Has your dog chewed on your keyboard? Please try re-entering the name.";
                 break;
         }
@@ -44,7 +44,7 @@ final readonly class DogSubmission
             case self::isLongerThan($description, 500):
                 $fields['description'] = "That's a whole tail-wagging biography! Please keep the description to 500 characters or fewer.";
                 break;
-            case self::hasDisallowedControlCharacters($description):
+            case self::hasBadCharacters($description):
                 $fields['description'] = 'There are some odd characters hiding in the description. Please try re-entering it.';
                 break;
         }
@@ -57,7 +57,7 @@ final readonly class DogSubmission
             case self::isLongerThan($ownerName, 120):
                 $fields['owner_name'] = "That's a very impressive name! Maybe the human has a shorter nickname, 120 characters or fewer?";
                 break;
-            case self::hasDisallowedControlCharacters($ownerName):
+            case self::hasBadCharacters($ownerName):
                 $fields['owner_name'] = 'There are some strange characters in that name. Please re-enter it.';
                 break;
         }
@@ -73,7 +73,7 @@ final readonly class DogSubmission
             case filter_var($ownerEmail, FILTER_VALIDATE_EMAIL) === false:
                 $fields['owner_email'] = 'Please enter a valid email address.';
                 break;
-            case self::hasDisallowedControlCharacters($ownerEmail):
+            case self::hasBadCharacters($ownerEmail):
                 $fields['owner_email'] = 'There are some odd characters in the email address. Please re-enter it.';
                 break;
         }
@@ -85,7 +85,7 @@ final readonly class DogSubmission
                 case self::isLongerThan($neighborhoodValue, 120):
                     $fields['neighborhood'] = 'That neighborhood name is surprisingly long. Please keep it to 120 characters or fewer.';
                     break;
-                case self::hasDisallowedControlCharacters($neighborhoodValue):
+                case self::hasBadCharacters($neighborhoodValue):
                     $fields['neighborhood'] = 'Please re-enter the name of the neighborhood. There are some odd characters in it.';
                     break;
             }
@@ -120,7 +120,7 @@ final readonly class DogSubmission
         return self::length($value) > $maxLength;
     }
 
-    private static function hasDisallowedControlCharacters(string $value): bool
+    private static function hasBadCharacters(string $value): bool
     {
         return preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $value) === 1;
     }
