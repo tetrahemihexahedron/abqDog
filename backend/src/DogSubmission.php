@@ -25,11 +25,11 @@ final readonly class DogSubmission
             case self::isBlank($dogName):
                 $fields['dog_name'] = "Please enter the pup's name.";
                 break;
-            case self::isLongerThan($dogName, 80):
-                $fields['dog_name'] = "Wow, that's long! We can't record or display a name that long. Please supply a shorter name, no more than 80 characters.";
-                break;
             case self::hasBadCharacters($dogName):
                 $fields['dog_name'] = "There are some weird characters in that name. Has your dog chewed on your keyboard? Please try re-entering the name.";
+                break;
+            case self::isLongerThan($dogName, 80):
+                $fields['dog_name'] = "Wow, that's long! We can't record or display a name that long. Please supply a shorter name, no more than 80 characters.";
                 break;
         }
 
@@ -38,14 +38,14 @@ final readonly class DogSubmission
             case self::isBlank($description):
                 $fields['description'] = "Every good dog deserves a little intro! Please write a short description.";
                 break;
+            case self::hasBadCharacters($description):
+                $fields['description'] = 'There are some odd characters hiding in the description. Please try re-entering it.';
+                break;
             case self::isShorterThan($description, 10):
                 $fields['description'] = "We want to know more! Please write a description with at least 10 characters.";
                 break;
             case self::isLongerThan($description, 500):
                 $fields['description'] = "That's a whole tail-wagging biography! Please keep the description to 500 characters or fewer.";
-                break;
-            case self::hasBadCharacters($description):
-                $fields['description'] = 'There are some odd characters hiding in the description. Please try re-entering it.';
                 break;
         }
 
@@ -54,11 +54,11 @@ final readonly class DogSubmission
             case self::isBlank($ownerName):
                 $fields['owner_name'] = "Please enter the name of the dog's human.";
                 break;
-            case self::isLongerThan($ownerName, 120):
-                $fields['owner_name'] = "That's a very impressive name! Maybe the human has a shorter nickname, 120 characters or fewer?";
-                break;
             case self::hasBadCharacters($ownerName):
                 $fields['owner_name'] = 'There are some strange characters in that name. Please re-enter it.';
+                break;
+            case self::isLongerThan($ownerName, 120):
+                $fields['owner_name'] = "That's a very impressive name! Maybe the human has a shorter nickname, 120 characters or fewer?";
                 break;
         }
 
@@ -67,14 +67,14 @@ final readonly class DogSubmission
             case self::isBlank($ownerEmail):
                 $fields['owner_email'] = "Please enter your email.";
                 break;
+            case self::hasBadCharacters($ownerEmail):
+                $fields['owner_email'] = 'There are some odd characters in the email address. Please re-enter it.';
+                break;
             case self::isLongerThan($ownerEmail, 254):
                 $fields['owner_email'] = 'That email address is too long for our records. Please enter an email address with 254 characters or fewer.';
                 break;
             case filter_var($ownerEmail, FILTER_VALIDATE_EMAIL) === false:
                 $fields['owner_email'] = 'Please enter a valid email address.';
-                break;
-            case self::hasBadCharacters($ownerEmail):
-                $fields['owner_email'] = 'There are some odd characters in the email address. Please re-enter it.';
                 break;
         }
 
@@ -82,11 +82,11 @@ final readonly class DogSubmission
         $neighborhoodValue = self::isBlank($neighborhood) ? null : $neighborhood;
         if ($neighborhoodValue !== null) {
             switch (true) {
-                case self::isLongerThan($neighborhoodValue, 120):
-                    $fields['neighborhood'] = 'That neighborhood name is surprisingly long. Please keep it to 120 characters or fewer.';
-                    break;
                 case self::hasBadCharacters($neighborhoodValue):
                     $fields['neighborhood'] = 'Please re-enter the name of the neighborhood. There are some odd characters in it.';
+                    break;
+                case self::isLongerThan($neighborhoodValue, 120):
+                    $fields['neighborhood'] = 'That neighborhood name is surprisingly long. Please keep it to 120 characters or fewer.';
                     break;
             }
         }
