@@ -1,5 +1,19 @@
 # albuquerque.dog
 
+## About this project
+
+Inspired by [Dogs of Dev](https://dogsof.dev), I want albuquerque.dog to be a small website showcasing dogs in Albuquerque, New Mexico, most of whom are friends of [Rosie the Dog](https://rosiethe.dog). A dog's human can submit their dog for possible inclusion via a small form.
+
+Primarily, this project is an experiment in agentic coding.
+
+I am running [Pi](https://pi.dev) in a [devcontainer](https://containers.dev), so that I feel more comfortable giving the agent free range. I am using gpt-5.5, mostly with a 'medium' thinking level, via my ChatGPT+ subscription. The agent is writing almost all of the code, but I am playing a very active role. I am working incrementally. I ask the agent to produce a plan before writing the code, read everything and often ask the agent to make changes or to consider different design choices.
+
+The ideal outcome is that I produce maintainable and extendible code that I understand and trust at least as much as code I would write myself, in much less time than it would take me to write it.
+
+A secondary goal is to improve my software engineering skills and judgment.
+
+This section of the README was written by a living breathing person, but the rest of this README is AI-generated.
+
 ## Local development
 
 This project uses [`just`](https://just.systems) for common development commands. These commands will work inside the devcontainer. They should also work locally, without running the devcontainer, if `just` and other dependencies (like Docker) are installed.
