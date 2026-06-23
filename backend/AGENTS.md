@@ -19,6 +19,7 @@ Use handwritten validation, prepared statements, environment-configured paths, J
 - Use a small `Request` wrapper instead of passing superglobals throughout submission code.
 - Prefer small domain/value objects over large associative arrays for submission data. Current direction: `DogPhoto` for generated stored filenames, `DogSubmission` for validated public submission data, and `Dog` for a dog row ready for persistence.
 - Keep domain constructors side-effect free. File upload validation/storage belongs in an application service such as `Uploads`, not in `DogSubmission` or `DogPhoto` constructors.
+- Use appropriate domain/value objects and small services with limited responsibilities.
 - Keep insert/select SQL in the handlers for now and move it later to a repository/service if needed.
 - Store database timestamps as UTC ISO-8601 text strings matching the existing SQLite schema and public API. Use `Database::now()` for persisted timestamps. `backend/php.ini` should set `date.timezone = UTC` as a baseline.
 - Use a tiny `Logger` wrapper around `error_log()` rather than adding a logging dependency for now. Do not log owner name, owner email, raw submitted fields, uploaded client filenames, or full request payloads.
