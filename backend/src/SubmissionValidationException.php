@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace AbqDog;
 
-use InvalidArgumentException;
+use DomainException;
 
-final class SubmissionValidationException extends InvalidArgumentException
+final class SubmissionValidationException extends DomainException
 {
     /**
      * @param array<string, string> $fields
