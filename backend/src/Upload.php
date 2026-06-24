@@ -8,28 +8,24 @@ use InvalidArgumentException;
 
 abstract readonly class Upload
 {
-    /**
-     * @param list<string> $allowedMimeTypes
-     */
+    /** @var list<string> */
+    protected const array ALLOWED_MIME_TYPES = [];
+
     protected function __construct(
         public string $fieldName,
         public string $temporaryPath,
         public int $size,
         public string $mimeType,
-        public array $allowedMimeTypes = [],
     ) {
     }
 
     /**
-     * @param list<string> $allowedMimeTypes
-     *
      * @throws UploadValidationException
      */
     protected static function fromRequest(
         Request $request,
         string $fieldName,
         int $maxBytes,
-        array $allowedMimeTypes = [],
     ): static {
         if ($maxBytes < 1) {
             throw new InvalidArgumentException('Maximum upload size must be positive.');
@@ -90,11 +86,20 @@ abstract readonly class Upload
             throw new UploadValidationException(static::malformedUploadMessage(), 400);
         }
 
+        $allowedMimeTypes = static::allowedMimeTypes();
         if ($allowedMimeTypes !== [] && !in_array($mimeType, $allowedMimeTypes, true)) {
             throw new UploadValidationException(static::unsupportedMimeTypeMessage(), 415);
         }
 
-        return new static($fieldName, $temporaryPath, $size, $mimeType, $allowedMimeTypes);
+        return new static($fieldName, $temporaryPath, $size, $mimeType);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected static function allowedMimeTypes(): array
+    {
+        return static::ALLOWED_MIME_TYPES;
     }
 
     private static function hasArrayValue(mixed $value): bool
