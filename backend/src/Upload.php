@@ -122,16 +122,8 @@ abstract readonly class Upload
 
     private static function detectMimeType(string $temporaryPath): ?string
     {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        if ($finfo === false) {
-            return null;
-        }
-
-        try {
-            $mimeType = @finfo_file($finfo, $temporaryPath);
-        } finally {
-            finfo_close($finfo);
-        }
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mimeType = @$finfo->file($temporaryPath);
 
         if (!is_string($mimeType) || $mimeType === '') {
             return null;
