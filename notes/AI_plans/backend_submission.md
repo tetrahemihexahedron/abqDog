@@ -102,7 +102,7 @@ public function path(): string
 final readonly class DogSubmission
 ```
 
-`DogSubmission` represents a valid public submission. Use a named factory to parse request data, trim and validate text fields, and combine them with an already-stored `DogPhoto`. The factory has no filesystem side effects; upload storage remains in `Uploads`.
+`DogSubmission` represents a valid public submission. Use a named factory to parse request data, trim and validate text fields, and combine them with an already-stored `DogPhoto`. The factory has no filesystem side effects; upload storage remains in `UploadStorer`.
 
 Suggested constructor and factory signatures:
 
@@ -156,13 +156,9 @@ final class SubmissionValidationException extends InvalidArgumentException
 public function fields(): array
 ```
 
-Use `Uploads` as an application service for upload validation and storage. For upload operations that can fail without throwing, use a result object rather than a mixed array.
+Model incoming uploads separately from stored files. Use a base `Upload` domain object for validation that applies to any uploaded file, a `PhotoUpload` subclass for image-specific rules, a `StoredUpload` value object for the generated server-side filename/path after storage, and an `UploadStorer` application service for filesystem side effects. `PhotoUpload` and `UploadStorer` should not know about dogs; convert a `StoredUpload` to `DogPhoto` at the submission boundary.
 
-Suggested result class name:
-
-```php
-final readonly class PhotoUploadResult
-```
+Upload factories should either throw or return a valid object; do not use a result object for upload validation. Throw an `UploadValidationException` containing an API-safe message and HTTP status for validation errors.
 
 ## Implementation steps
 
@@ -290,66 +286,220 @@ Keep low-level text helpers private on `DogSubmission` for now; extracting a sep
 
 ### 7. Add upload validation and file storage
 
-Add `backend/src/Uploads.php` after text validation is working. Keep upload validation and storage in this application service because it has filesystem side effects and the validation result determines the generated stored filename.
+Add upload handling after text validation is working. Keep domain validation separate from filesystem storage:
+
+- `backend/src/Upload.php`: base upload domain object for validation required by any uploaded file.
+- `backend/src/UploadValidationException.php`: API-safe validation exception for invalid incoming uploads.
+- `backend/src/PhotoUpload.php`: image-specific upload object that extends `Upload` and validates accepted image MIME types.
+- `backend/src/StoredUpload.php`: value object for a stored server-side upload filename and directory.
+- `backend/src/UploadStorer.php`: application service that stores a validated `Upload` on the filesystem and returns a `StoredUpload`.
+
+Constructors may validate and normalize upload metadata, but they must remain side-effect free. `Upload` should describe the incoming temporary upload and should not track the final stored filename. The stored filename is only known after the storage side effect succeeds, so keep it in a separate `StoredUpload` value object. Directory creation, filename generation, extension selection, and `move_uploaded_file()` belong in `UploadStorer`.
+
+#### 7.1. Add `UploadValidationException`
+
+Upload validation errors should be represented by `UploadValidationException`, not by `null`, partial objects, mixed arrays, or result objects. Upload factories should either throw or return a valid object.
+
+Suggested signature:
+
+```php
+final class UploadValidationException extends InvalidArgumentException
+{
+    public function __construct(
+        string $message,
+        public readonly int $status,
+    )
+}
+```
 
 Rules:
 
-1. Require exactly one uploaded file under the `photo` field.
-2. Reject missing, empty, partial, or multiple uploads.
-3. Reject files larger than 5 MB.
-4. Validate MIME type with `finfo_file`, not the client filename or `$_FILES['photo']['type']`.
-5. Accept only:
+1. The exception message must be safe to return to the API client.
+2. Do not include client filenames, temporary paths, raw upload arrays, owner fields, or submitted text values.
+3. The handler should catch this exception and return the shared error shape with `$exception->status`.
+4. Do not log validation exceptions; they represent client-correctable input. Only log unexpected storage/database/server failures, without private fields or client filenames.
+
+Example handler shape:
+
+```php
+try {
+    $upload = PhotoUpload::fromRequest($request);
+} catch (UploadValidationException $exception) {
+    return Response::json(['error' => $exception->getMessage()], $exception->status);
+}
+```
+
+Expected validation error statuses and messages:
+
+- `400` for malformed upload structures, for example `"That photo upload was malformed. Please try choosing the file again."`
+- `413` for files larger than 5 MB where detectable, for example `"That photo is too big. Please choose an image under 5 MB."`
+- `415` for unsupported image MIME types, for example `"That photo type is not supported. Please use a JPG, PNG, or WebP image."`
+- `422` for a missing required photo or incomplete upload, for example `"Please add a photo of your dog."` or `"The photo upload did not finish. Please try again."`
+
+#### 7.2. Add base `Upload`
+
+Base `Upload` rules:
+
+1. Require exactly one uploaded file under the requested field name.
+2. Reject missing, malformed, empty, partial, or multiple uploads.
+3. Reject files larger than the supplied maximum size, 5 MB for dog photos.
+4. Keep only server-relevant data such as the field name, temporary filename, detected size, detected MIME type, and allowed MIME types. Do not preserve user-provided filenames.
+5. Validate MIME type with `finfo_file`, not the client filename or `$_FILES['photo']['type']`.
+6. Support an allowed MIME type list, for example `['image/jpeg']`. An empty list means the base class applies no MIME restriction beyond detecting the MIME type successfully. Subclasses such as `PhotoUpload` provide restrictions by passing a non-empty list.
+7. Do not put file-extension behavior on `Upload`; the base class validates the incoming upload but does not decide how stored filenames are formed.
+8. On validation failure, throw `UploadValidationException`; on success, return a valid `Upload` object.
+
+Suggested signature:
+
+```php
+abstract readonly class Upload
+{
+    /** @param list<string> $allowedMimeTypes */
+    protected function __construct(
+        public string $fieldName,
+        public string $temporaryPath,
+        public int $size,
+        public string $mimeType,
+        public array $allowedMimeTypes = [],
+    )
+
+    /** @param list<string> $allowedMimeTypes */
+    protected static function fromRequest(
+        Request $request,
+        string $fieldName,
+        int $maxBytes,
+        array $allowedMimeTypes = [],
+    ): static
+}
+```
+
+Validation exception details:
+
+- Treat `UPLOAD_ERR_NO_FILE` as `422`.
+- Treat `UPLOAD_ERR_INI_SIZE` and `UPLOAD_ERR_FORM_SIZE` as `413`.
+- Treat `UPLOAD_ERR_PARTIAL` as `422`.
+- Treat unknown upload error codes, array-valued fields, missing `tmp_name`/`size`/`error`, non-string `tmp_name`, non-int-like `size`, non-int-like `error`, or failed MIME detection as `400`.
+- Treat unsupported detected MIME types as `415` when the upload subclass provides a non-empty allowed MIME type list.
+
+#### 7.3. Add `PhotoUpload`
+
+`PhotoUpload` rules:
+
+1. Accept the field name and maximum size from its factory, rather than hard-coding dog-submission concepts in the base `Upload` class.
+2. For dog submissions, call the factory with the `photo` field and a 5 MB maximum size.
+3. Accept only these MIME types:
+   - `image/jpeg`
+   - `image/png`
+   - `image/webp`
+4. Provide its allowed MIME type list to the base `Upload` factory.
+5. Do not know or expose file extensions. `PhotoUpload` validates that the detected MIME type is an acceptable photo MIME type; `UploadStorer` is responsible for mapping accepted MIME types to stored filename extensions.
+
+Suggested signature:
+
+```php
+final readonly class PhotoUpload extends Upload
+{
+    private const MAX_BYTES = 5 * 1024 * 1024;
+
+    /** @var list<string> */
+    private const ALLOWED_MIME_TYPES = [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+    ];
+
+    public static function fromRequest(
+        Request $request,
+        string $fieldName = 'photo',
+        int $maxBytes = self::MAX_BYTES,
+    ): self
+
+    /** @return list<string> */
+    public static function allowedMimeTypes(): array
+}
+```
+
+#### 7.4. Add `StoredUpload`
+
+`StoredUpload` rules:
+
+1. Represent the generated stored filename and storage directory after a successful move.
+2. Validate the generated filename defensively.
+3. Provide a `path()` helper that joins the directory and filename.
+4. Do not include or preserve user-provided filenames.
+
+Suggested signature:
+
+```php
+final readonly class StoredUpload
+{
+    public function __construct(
+        public string $directory,
+        public string $filename,
+    )
+
+    public function path(): string
+}
+```
+
+#### 7.5. Add `UploadStorer`
+
+`UploadStorer` rules:
+
+1. Accept the target upload directory as configuration through the constructor, so the service is not dog-specific.
+2. Keep a class-level MIME-to-extension map. It does not need to be configured per use right now. It is okay if the initial map only contains image types:
    - `image/jpeg` -> `.jpg`
    - `image/png` -> `.png`
    - `image/webp` -> `.webp`
-6. Generate the stored filename server-side, for example `bin2hex(random_bytes(16)) . $extension`.
-7. Ensure `Config::dogImageUploadDir()` exists and is writable; create it if needed.
-8. Store with `move_uploaded_file` only.
-9. Do not preserve user-provided filenames.
+3. Look up the detected MIME type from the validated `Upload` in that class-level map. If there is no extension for the upload's MIME type, store without an extension rather than treating it as a client validation error.
+4. Generate the stored filename server-side, for example `bin2hex(random_bytes(16)) . $extension`.
+5. Ensure the configured upload directory exists and is writable; create it if needed.
+6. Store with `move_uploaded_file` only.
+7. Return a `StoredUpload` built from the generated filename and configured directory.
 
-Suggested method signatures:
-
-```php
-public static function storeDogPhoto(Request $request): PhotoUploadResult
-
-public static function ensureUploadDirectory(): void
-
-public static function extensionForMimeType(string $mimeType): ?string
-```
-
-Suggested result accessors or properties:
+Suggested signature:
 
 ```php
-public ?DogPhoto $photo
-public ?string $error
-public int $status
+final readonly class UploadStorer
+{
+    /** @var array<string, string> */
+    private const EXTENSIONS_BY_MIME_TYPE = [
+        'image/jpeg' => '.jpg',
+        'image/png' => '.png',
+        'image/webp' => '.webp',
+    ];
+
+    public function __construct(public string $directory)
+
+    public function store(Upload $upload): StoredUpload
+
+    private function extensionFor(Upload $upload): string
+
+    private function ensureUploadDirectory(): void
+}
 ```
 
-Expected error statuses:
-
-- `400` for malformed upload structures.
-- `413` for files larger than 5 MB where detectable.
-- `415` for unsupported image MIME types.
-- `422` for a missing required photo or incomplete upload.
+Successful storage returns `StoredUpload` from `UploadStorer`. `UploadStorer` owns the stored filename extension decision; `Upload` and `PhotoUpload` only validate the incoming upload. The submission handler can then build `DogPhoto` from `$storedUpload->filename` because dog rows currently persist only the generated filename.
 
 ### 8. Complete handler integration and cleanup
 
 Complete `SubmissionsHandler::create()` by replacing placeholder insert values with:
 
 1. Build a `Request` with `Request::fromGlobals()`.
-2. Store the uploaded photo with `Uploads::storeDogPhoto($request)`, producing a `DogPhoto`.
-3. Build a `DogSubmission` with `DogSubmission::fromRequest($request, $photo)`; if validation fails, delete the stored photo before returning validation errors.
-4. Build a `Dog` with `Dog::fromDogSubmission($submission)`.
-5. Insert the dog with `insertDog()`.
-6. If the database insert fails after moving the uploaded file, delete the uploaded file before returning an error.
-7. Return the `201` success response.
+2. Build a `PhotoUpload` from the request. If `PhotoUpload::fromRequest()` throws `UploadValidationException`, return its API-safe message and status without attempting storage or logging the validation failure. Otherwise, store it with `new UploadStorer(Config::dogImageUploadDir())`, producing a `StoredUpload`.
+3. Build a `DogPhoto` from `$storedUpload->filename`.
+4. Build a `DogSubmission` with `DogSubmission::fromRequest($request, $photo)`; if validation fails, delete the stored upload before returning validation errors.
+5. Build a `Dog` with `Dog::fromDogSubmission($submission)`.
+6. Insert the dog with `insertDog()`.
+7. If the database insert fails after moving the uploaded file, delete the uploaded file before returning an error.
+8. Return the `201` success response.
 
 Suggested helper method signatures:
 
 ```php
 private static function buildDog(DogSubmission $submission): Dog
 
-private static function deleteStoredPhotoIfPresent(?DogPhoto $photo): void
+private static function deleteStoredUploadIfPresent(?StoredUpload $upload): void
 ```
 
 Do not log owner name, owner email, or raw submitted values.
