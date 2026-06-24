@@ -343,9 +343,9 @@ Base `Upload` rules:
 1. Require exactly one uploaded file under the requested field name.
 2. Reject missing, malformed, empty, partial, or multiple uploads.
 3. Reject files larger than the supplied maximum size, 5 MB for dog photos.
-4. Keep only server-relevant data such as the field name, temporary filename, detected size, detected MIME type, and allowed MIME types. Do not preserve user-provided filenames.
+4. Keep only server-relevant data such as the field name, temporary filename, detected size, and detected MIME type. Do not preserve user-provided filenames.
 5. Validate MIME type with `finfo_file`, not the client filename or `$_FILES['photo']['type']`.
-6. Support an allowed MIME type list, for example `['image/jpeg']`. An empty list means the base class applies no MIME restriction beyond detecting the MIME type successfully. Subclasses such as `PhotoUpload` provide restrictions by passing a non-empty list.
+6. Support a protected class-level allowed MIME type list, for example `['image/jpeg']`. An empty list means the base class applies no MIME restriction beyond detecting the MIME type successfully. Subclasses such as `PhotoUpload` provide restrictions by overriding the list.
 7. Do not put file-extension behavior on `Upload`; the base class validates the incoming upload but does not decide how stored filenames are formed.
 8. On validation failure, throw `UploadValidationException`; on success, return a valid `Upload` object.
 
@@ -354,22 +354,24 @@ Suggested signature:
 ```php
 abstract readonly class Upload
 {
-    /** @param list<string> $allowedMimeTypes */
+    /** @var list<string> */
+    protected const array ALLOWED_MIME_TYPES = [];
+
     protected function __construct(
         public string $fieldName,
         public string $temporaryPath,
         public int $size,
         public string $mimeType,
-        public array $allowedMimeTypes = [],
     )
 
-    /** @param list<string> $allowedMimeTypes */
     protected static function fromRequest(
         Request $request,
         string $fieldName,
         int $maxBytes,
-        array $allowedMimeTypes = [],
     ): static
+
+    /** @return list<string> */
+    protected static function allowedMimeTypes(): array
 }
 ```
 
@@ -391,7 +393,7 @@ Validation exception details:
    - `image/jpeg`
    - `image/png`
    - `image/webp`
-4. Provide its allowed MIME type list to the base `Upload` factory.
+4. Override the protected allowed MIME type list from the base `Upload` class.
 5. Do not know or expose file extensions. `PhotoUpload` validates that the detected MIME type is an acceptable photo MIME type; `UploadStorer` is responsible for mapping accepted MIME types to stored filename extensions.
 
 Suggested signature:
@@ -402,7 +404,7 @@ final readonly class PhotoUpload extends Upload
     private const MAX_BYTES = 5 * 1024 * 1024;
 
     /** @var list<string> */
-    private const ALLOWED_MIME_TYPES = [
+    protected const array ALLOWED_MIME_TYPES = [
         'image/jpeg',
         'image/png',
         'image/webp',
@@ -413,9 +415,6 @@ final readonly class PhotoUpload extends Upload
         string $fieldName = 'photo',
         int $maxBytes = self::MAX_BYTES,
     ): self
-
-    /** @return list<string> */
-    public static function allowedMimeTypes(): array
 }
 ```
 
