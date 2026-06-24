@@ -150,7 +150,7 @@ For request validation failures that need field-addressable responses, use a sma
 Suggested exception signature:
 
 ```php
-final class SubmissionValidationException extends InvalidArgumentException
+final class SubmissionValidationException extends DomainException
 
 /** @return array<string, string> */
 public function fields(): array
@@ -296,14 +296,14 @@ Add upload handling after text validation is working. Keep domain validation sep
 
 Constructors may validate and normalize upload metadata, but they must remain side-effect free. `Upload` should describe the incoming temporary upload and should not track the final stored filename. The stored filename is only known after the storage side effect succeeds, so keep it in a separate `StoredUpload` value object. Directory creation, filename generation, extension selection, and `move_uploaded_file()` belong in `UploadStorer`.
 
-#### 7.1. Add `UploadValidationException`
+#### 7.1. Done: add `UploadValidationException`
 
 Upload validation errors should be represented by `UploadValidationException`, not by `null`, partial objects, mixed arrays, or result objects. Upload factories should either throw or return a valid object.
 
 Suggested signature:
 
 ```php
-final class UploadValidationException extends InvalidArgumentException
+final class UploadValidationException extends DomainException
 {
     public function __construct(
         string $message,
@@ -336,7 +336,7 @@ Expected validation error statuses and messages:
 - `415` for unsupported image MIME types, for example `"That photo type is not supported. Please use a JPG, PNG, or WebP image."`
 - `422` for a missing required photo or incomplete upload, for example `"Please add a photo of your dog."` or `"The photo upload did not finish. Please try again."`
 
-#### 7.2. Add base `Upload`
+#### 7.2. Done: add base `Upload`
 
 Base `Upload` rules:
 
