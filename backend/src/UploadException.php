@@ -6,7 +6,7 @@ namespace AbqDog;
 
 use DomainException;
 
-final class UploadValidationException extends DomainException
+final class UploadException extends DomainException
 {
     public function __construct(
         string $message,
