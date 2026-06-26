@@ -411,7 +411,7 @@ Validation exception details:
 - Treat unknown upload error codes, array-valued fields, missing `tmp_name`/`size`/`error`, non-string `tmp_name`, non-int-like `size`, non-int-like `error`, or failed MIME detection as `400`.
 - Treat unsupported detected MIME types as `415`.
 
-#### 7.3. Refactor `DogSubmission`
+#### 7.3. Done: refactored `DogSubmission`
 
 Change `DogSubmission::fromRequest()` so the handler can create the submission in one call:
 
@@ -441,7 +441,7 @@ private function __construct(
 )
 ```
 
-#### 7.4. Keep `DogPhoto` as the stored-photo value object
+#### 7.4. Done: kept `DogPhoto` as the stored-photo value object
 
 `DogPhoto` continues to represent the generated server-side filename after the photo has been moved. It should not accept or preserve the client-provided filename.
 
@@ -453,7 +453,7 @@ public function __construct(public string $filename)
 public function path(): string
 ```
 
-#### 7.5. Refactor `Dog`
+#### 7.5. Done: refactored `Dog`
 
 Change the factory name and inputs so it clearly accepts the validated submission plus the stored photo:
 
