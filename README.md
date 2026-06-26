@@ -38,6 +38,20 @@ List available commands:
 just --list
 ```
 
+## Formatting
+
+Format PHP files with PHP-CS-Fixer in the backend Docker container:
+
+```sh
+just format
+```
+
+To check formatting without changing files:
+
+```sh
+just format-check
+```
+
 ## Development database
 
 Create the local `.env` file at the repository root from the tracked sample:

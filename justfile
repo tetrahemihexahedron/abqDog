@@ -16,6 +16,14 @@ dev: env-init
 down:
     {{compose}} down
 
+# Format backend PHP files with PHP-CS-Fixer in the backend container
+format: env-init
+    {{compose}} run --rm --no-deps --build backend sh -lc 'composer install --no-interaction --prefer-dist && composer format'
+
+# Check backend PHP formatting without changing files
+format-check: env-init
+    {{compose}} run --rm --no-deps --build backend sh -lc 'composer install --no-interaction --prefer-dist && composer format:check'
+
 # Initialize the development database schema
 db-init: env-init
     {{compose}} run --rm backend sh -lc 'sqlite3 "$DATABASE_PATH" < migrations/001_create_dogs_table.sql'
