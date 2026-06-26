@@ -18,13 +18,14 @@ final readonly class Dog
         public string $updatedAt,
     ) {}
 
-    public static function fromDogSubmission(
+    public static function fromSubmission(
         DogSubmission $submission,
+        DogPhoto $photo,
     ): self {
         return self::pending(
             $submission->dogName,
             $submission->description,
-            $submission->photo,
+            $photo,
             $submission->ownerName,
             $submission->ownerEmail,
             $submission->neighborhood,
