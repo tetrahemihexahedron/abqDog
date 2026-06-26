@@ -25,3 +25,4 @@ Use handwritten validation, prepared statements, environment-configured paths, J
 - Use a tiny `Logger` wrapper around `error_log()` rather than adding a logging dependency for now. Do not log owner name, owner email, raw submitted fields, uploaded client filenames, or full request payloads.
 - Success responses may include `ok: true`; error responses use the shared `{ "error": "..." }` shape and should not include `ok`.
 - Write user-friendly, playful and specific validation error messages.
+- After modifying PHP files, run `composer format` before finishing.
