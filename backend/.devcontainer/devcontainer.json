@@ -44,5 +44,5 @@
     "PI_CODING_AGENT_DIR": "/workspaces/abqDog/.pi"
   },
 
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y just && npm install -g --ignore-scripts @earendil-works/pi-coding-agent"
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y just && npm install -g --ignore-scripts @earendil-works/pi-coding-agent && composer install"
 }
