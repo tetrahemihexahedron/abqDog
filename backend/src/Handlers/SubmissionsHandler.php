@@ -6,23 +6,42 @@ namespace AbqDog\Handlers;
 
 use AbqDog\Database;
 use AbqDog\Dog;
+use AbqDog\DogSubmission;
 use AbqDog\Http;
 use AbqDog\Logger;
+use AbqDog\PhotoStorer;
+use AbqDog\Request;
 use AbqDog\Response;
+use AbqDog\SubmissionValidationException;
 use Throwable;
 
 final class SubmissionsHandler
 {
     public static function create(): Response
     {
-        $dog = Dog::placeholderForSubmission();
+        $request = Request::fromGlobals();
 
         try {
+            $submission = DogSubmission::fromRequest($request);
+        } catch (SubmissionValidationException $exception) {
+            return Http::jsonResponse([
+                'error' => $exception->getMessage(),
+                'fields' => $exception->fields(),
+            ], $exception->status);
+        }
+
+        $photoStorer = new PhotoStorer();
+        $dogPhoto = null;
+
+        try {
+            $dogPhoto = $photoStorer->store($submission->photo);
+            $dog = Dog::fromSubmission($submission, $dogPhoto);
             self::insertDog($dog);
         } catch (Throwable $exception) {
-            Logger::error('Failed to save dog submission.', $exception);
+            $photoStorer->deleteIfPresent($dogPhoto);
+            Logger::error('Could not save submission.', $exception);
 
-            return Http::jsonError('Could not save submission.', 500);
+            return Http::jsonError('The submission could not be saved.', 500);
         }
 
         return Http::jsonResponse([

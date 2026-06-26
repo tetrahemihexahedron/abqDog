@@ -32,18 +32,6 @@ final readonly class Dog
         );
     }
 
-    public static function placeholderForSubmission(): self
-    {
-        return self::pending(
-            'Placeholder Dog',
-            'Placeholder description until submission validation is implemented.',
-            new DogPhoto('placeholder.jpg'),
-            'Placeholder Owner',
-            'placeholder-owner@example.test',
-            null,
-        );
-    }
-
     private static function pending(
         string $dogName,
         string $description,
