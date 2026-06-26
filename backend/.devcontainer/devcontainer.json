@@ -27,8 +27,6 @@
       "extensions": [
         "-dbaeumer.vscode-eslint",
         "-devsense.phptools-vscode",
-        "-xdebug.php-debug",
-        "-xdebug.php-pack",
         "bmewburn.vscode-intelephense-client",
         "esbenp.prettier-vscode",
         "ms-azuretools.vscode-containers"
