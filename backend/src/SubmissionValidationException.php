@@ -11,8 +11,10 @@ final class SubmissionValidationException extends DomainException
     /**
      * @param array<string, string> $fields
      */
-    public function __construct(private readonly array $fields)
-    {
+    public function __construct(
+        private readonly array $fields,
+        public readonly int $status = 422,
+    ) {
         parent::__construct('Validation failed.');
     }
 
