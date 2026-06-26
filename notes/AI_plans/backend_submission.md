@@ -509,9 +509,9 @@ Storage rules:
 7. `deleteIfPresent()` should delete only paths represented by a valid `DogPhoto`; missing files can be ignored.
 8. Let storage failures throw exceptions with API-safe, generic messages where practical. The handler should catch storage/database failures together, call `deleteIfPresent()` for any already-stored photo, log a generic server-side message, and return a `500` response using the shared error shape.
 
-### 9. Complete handler integration and cleanup
+### 9. Done: completed handler integration and cleanup
 
-Refactor `SubmissionsHandler::create()` to use this shape:
+Refactored `SubmissionsHandler::create()` to use this shape:
 
 ```php
 public static function create(): Response
@@ -547,15 +547,15 @@ public static function create(): Response
 }
 ```
 
-Implementation cleanup steps:
+Implemented cleanup:
 
-1. Delete or stop using `backend/src/Upload.php`.
-2. Add `backend/src/PhotoUpload.php` with the combined upload validation rules.
-3. Update `backend/src/DogSubmission.php` so `fromRequest()` accepts only `Request` and stores a `PhotoUpload`.
-4. Update `backend/src/Dog.php` from `fromDogSubmission()` to `fromSubmission(DogSubmission $submission, DogPhoto $photo)`.
-5. Add `backend/src/PhotoStorer.php` for storing uploads and deleting already-stored photos after later failures.
-6. Update `backend/src/Handlers/SubmissionsHandler.php` to validate, use `PhotoStorer`, insert the dog, clean up stored photos on later failures, and return the final `201` response.
-7. Keep `insertDog(Dog $dog): int` private on `SubmissionsHandler` for now.
+1. `backend/src/Upload.php` is not used.
+2. `backend/src/PhotoUpload.php` contains the combined upload validation rules.
+3. `backend/src/DogSubmission.php` accepts only `Request` in `fromRequest()` and stores a `PhotoUpload`.
+4. `backend/src/Dog.php` uses `fromSubmission(DogSubmission $submission, DogPhoto $photo)`.
+5. `backend/src/PhotoStorer.php` stores uploads and deletes already-stored photos after later failures.
+6. `backend/src/Handlers/SubmissionsHandler.php` validates, uses `PhotoStorer`, inserts the dog, cleans up stored photos on later failures, and returns the final `201` response.
+7. `insertDog(Dog $dog): int` remains private on `SubmissionsHandler` for now.
 
 Do not log owner name, owner email, descriptions, raw submitted values, uploaded client filenames, temporary paths, or full request payloads.
 
