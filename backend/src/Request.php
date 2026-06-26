@@ -13,8 +13,7 @@ final readonly class Request
     public function __construct(
         public array $post,
         public array $files,
-    ) {
-    }
+    ) {}
 
     public static function fromGlobals(): self
     {

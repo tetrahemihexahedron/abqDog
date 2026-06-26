@@ -16,11 +16,10 @@ final readonly class Dog
         public string $status,
         public string $createdAt,
         public string $updatedAt,
-    ) {
-    }
+    ) {}
 
     public static function fromDogSubmission(
-        DogSubmission $submission
+        DogSubmission $submission,
     ): self {
         return self::pending(
             $submission->dogName,

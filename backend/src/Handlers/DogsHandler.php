@@ -15,11 +15,11 @@ final class DogsHandler
     {
         $statement = Database::connect()->query(
             <<<'SQL'
-            SELECT id, dog_name, description, photo_filename, neighborhood, created_at
-            FROM dogs
-            WHERE status = 'approved'
-            ORDER BY created_at DESC, id DESC
-            SQL
+                SELECT id, dog_name, description, photo_filename, neighborhood, created_at
+                FROM dogs
+                WHERE status = 'approved'
+                ORDER BY created_at DESC, id DESC
+                SQL
         );
 
         $photoUrlBase = Config::dogImageUrlBase();

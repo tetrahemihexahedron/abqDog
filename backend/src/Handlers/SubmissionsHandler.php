@@ -36,28 +36,28 @@ final class SubmissionsHandler
         $pdo = Database::connect();
         $statement = $pdo->prepare(
             <<<'SQL'
-            INSERT INTO dogs (
-                dog_name,
-                description,
-                photo_filename,
-                owner_name,
-                owner_email,
-                neighborhood,
-                status,
-                created_at,
-                updated_at
-            ) VALUES (
-                :dog_name,
-                :description,
-                :photo_filename,
-                :owner_name,
-                :owner_email,
-                :neighborhood,
-                :status,
-                :created_at,
-                :updated_at
-            )
-            SQL
+                INSERT INTO dogs (
+                    dog_name,
+                    description,
+                    photo_filename,
+                    owner_name,
+                    owner_email,
+                    neighborhood,
+                    status,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :dog_name,
+                    :description,
+                    :photo_filename,
+                    :owner_name,
+                    :owner_email,
+                    :neighborhood,
+                    :status,
+                    :created_at,
+                    :updated_at
+                )
+                SQL
         );
 
         $statement->execute([

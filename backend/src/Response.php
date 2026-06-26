@@ -14,6 +14,5 @@ final readonly class Response
         public int $status,
         public array $payload,
         public array $headers = [],
-    ) {
-    }
+    ) {}
 }

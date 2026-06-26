@@ -19,8 +19,7 @@ final readonly class PhotoUpload
         public string $temporaryPath,
         public int $size,
         public string $mimeType,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws UploadException

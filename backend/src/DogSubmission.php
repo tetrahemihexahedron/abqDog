@@ -13,8 +13,7 @@ final readonly class DogSubmission
         public string $ownerEmail,
         public ?string $neighborhood,
         public DogPhoto $photo,
-    ) {
-    }
+    ) {}
 
     public static function fromRequest(Request $request, DogPhoto $photo): self
     {

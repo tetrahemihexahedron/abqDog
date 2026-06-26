@@ -12,7 +12,7 @@ final class Database
 {
     public static function now(): string
     {
-        return (new DateTimeImmutable('now', new DateTimeZone('UTC')))
+        return new DateTimeImmutable('now', new DateTimeZone('UTC'))
             ->format('Y-m-d\\TH:i:s\\Z');
     }
 

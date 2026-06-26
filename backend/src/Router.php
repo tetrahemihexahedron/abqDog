@@ -9,9 +9,7 @@ final class Router
     /**
      * @param array<string, array<string, callable(): Response>> $routes
      */
-    public function __construct(private readonly array $routes)
-    {
-    }
+    public function __construct(private readonly array $routes) {}
 
     public function dispatch(string $method, string $path): Response
     {
