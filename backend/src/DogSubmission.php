@@ -12,10 +12,10 @@ final readonly class DogSubmission
         public string $ownerName,
         public string $ownerEmail,
         public ?string $neighborhood,
-        public DogPhoto $photo,
+        public PhotoUpload $photo,
     ) {}
 
-    public static function fromRequest(Request $request, DogPhoto $photo): self
+    public static function fromRequest(Request $request): self
     {
         $fields = [];
 
@@ -90,8 +90,23 @@ final readonly class DogSubmission
             }
         }
 
+        $photo = null;
+        $status = 422;
+
+        try {
+            $photo = PhotoUpload::fromRequest($request);
+        } catch (UploadException $exception) {
+            $fields['photo'] = $exception->getMessage();
+            $status = $exception->status;
+        }
+
         if ($fields !== []) {
-            throw new SubmissionValidationException($fields);
+            throw new SubmissionValidationException($fields, $status);
+        }
+
+        // Shouldn't happen: helps static analysis tools know that $photo is definitely a PhotoUpload.
+        if ($photo === null) {
+            throw new \LogicException('Validated photo missing.');
         }
 
         return new self($dogName, $description, $ownerName, $ownerEmail, $neighborhoodValue, $photo);
