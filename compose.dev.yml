@@ -10,6 +10,9 @@ services:
       - frontend-node-modules:/app/node_modules
 
   backend:
+    build:
+      context: ./backend
+      target: dev
     restart: "no"
     volumes:
       - ./backend:/var/www/backend

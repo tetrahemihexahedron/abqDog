@@ -10,7 +10,7 @@ RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS sqlite-dev \
 	&& apk del .build-deps \
 	&& apk add --no-cache sqlite sqlite-libs
 
-FROM php-base AS vendor
+FROM php-base AS vendor-prod
 
 COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
 
@@ -18,6 +18,15 @@ WORKDIR /app
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+FROM php-base AS vendor-dev
+
+COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --prefer-dist
 
 FROM php-base AS deploy
 
@@ -32,9 +41,16 @@ RUN addgroup -g ${GID} app \
 WORKDIR /var/www/backend
 
 COPY php.ini /usr/local/etc/php/conf.d/zz-abqdog.ini
-COPY --from=vendor --chown=app:app /app/vendor ./vendor
+COPY --from=vendor-prod --chown=app:app /app/vendor ./vendor
 COPY --chown=app:app . ./
 
 USER app
 
 CMD ["php-fpm"]
+
+FROM deploy AS dev
+
+USER root
+COPY --from=composer-bin /usr/bin/composer /usr/bin/composer
+COPY --from=vendor-dev --chown=app:app /app/vendor ./vendor
+USER app
