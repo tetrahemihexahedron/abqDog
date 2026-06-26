@@ -466,25 +466,38 @@ public static function fromSubmission(
 
 `fromSubmission()` should copy public/private fields from `DogSubmission`, assign the supplied stored `DogPhoto`, set `status` to `'pending'`, and set `createdAt` and `updatedAt` through `Database::now()`.
 
-### 8. Add handler-owned photo storage
+### 8. Done: added a small photo storer service
 
-For now, keep photo storage on `SubmissionsHandler` instead of adding an `UploadStorer` service. This is simpler, but it is a conscious tradeoff: the handler will mix HTTP orchestration with filesystem side effects. If upload storage gains reuse, variants, or more tests, extract it to a service later.
+Add a small `PhotoStorer` service instead of keeping upload storage helpers on `SubmissionsHandler`. Storing an upload has enough filesystem-specific behavior that a focused service is clearer and keeps the handler responsible for HTTP orchestration only.
 
-Add helper methods to `SubmissionsHandler`:
+Suggested file:
+
+```text
+backend/src/PhotoStorer.php
+```
+
+Suggested public methods:
 
 ```php
-private static function storePhoto(PhotoUpload $photo): DogPhoto
+final class PhotoStorer
+{
+    public function store(PhotoUpload $photo): DogPhoto
 
-private static function extensionForMimeType(string $mimeType): string
+    public function deleteIfPresent(?DogPhoto $photo): void
+}
+```
 
-private static function ensureUploadDirectory(): void
+Suggested private helpers:
 
-private static function deleteStoredPhotoIfPresent(?DogPhoto $photo): void
+```php
+private function extensionForMimeType(string $mimeType): string
+
+private function ensureUploadDirectory(): void
 ```
 
 Storage rules:
 
-1. Keep the MIME-to-extension map on `SubmissionsHandler` for now:
+1. Keep the MIME-to-extension map on `PhotoStorer`:
    - `image/jpeg` -> `.jpg`
    - `image/png` -> `.png`
    - `image/webp` -> `.webp`
@@ -493,7 +506,8 @@ Storage rules:
 4. Store with `move_uploaded_file($photo->temporaryPath, $destination)` only.
 5. Return a `DogPhoto` built from the generated filename.
 6. Do not preserve user-provided filenames.
-7. On storage failure, log a generic server-side message and return a `500` response using the shared error shape.
+7. `deleteIfPresent()` should delete only paths represented by a valid `DogPhoto`; missing files can be ignored.
+8. Let storage failures throw exceptions with API-safe, generic messages where practical. The handler should catch storage/database failures together, call `deleteIfPresent()` for any already-stored photo, log a generic server-side message, and return a `500` response using the shared error shape.
 
 ### 9. Complete handler integration and cleanup
 
@@ -513,14 +527,15 @@ public static function create(): Response
         ], $exception->status);
     }
 
+    $photoStorer = new PhotoStorer();
     $dogPhoto = null;
 
     try {
-        $dogPhoto = self::storePhoto($submission->photo);
+        $dogPhoto = $photoStorer->store($submission->photo);
         $dog = Dog::fromSubmission($submission, $dogPhoto);
         self::insertDog($dog);
     } catch (Throwable $exception) {
-        self::deleteStoredPhotoIfPresent($dogPhoto);
+        $photoStorer->deleteIfPresent($dogPhoto);
         Logger::error('Could not save submission.', $exception);
         return Http::jsonResponse(['error' => 'Could not save submission.'], 500);
     }
@@ -538,14 +553,15 @@ Implementation cleanup steps:
 2. Add `backend/src/PhotoUpload.php` with the combined upload validation rules.
 3. Update `backend/src/DogSubmission.php` so `fromRequest()` accepts only `Request` and stores a `PhotoUpload`.
 4. Update `backend/src/Dog.php` from `fromDogSubmission()` to `fromSubmission(DogSubmission $submission, DogPhoto $photo)`.
-5. Update `backend/src/Handlers/SubmissionsHandler.php` to validate, store the photo, insert the dog, clean up stored photos on later failures, and return the final `201` response.
-6. Keep `insertDog(Dog $dog): int` private on `SubmissionsHandler` for now.
+5. Add `backend/src/PhotoStorer.php` for storing uploads and deleting already-stored photos after later failures.
+6. Update `backend/src/Handlers/SubmissionsHandler.php` to validate, use `PhotoStorer`, insert the dog, clean up stored photos on later failures, and return the final `201` response.
+7. Keep `insertDog(Dog $dog): int` private on `SubmissionsHandler` for now.
 
 Do not log owner name, owner email, descriptions, raw submitted values, uploaded client filenames, temporary paths, or full request payloads.
 
 ### Design tradeoffs to revisit later
 
-- Keeping `storePhoto()` on `SubmissionsHandler` is intentionally simple, but it mixes request orchestration with filesystem storage. If upload storage needs reuse, direct unit testing, alternate directories, or background processing, extract it to an `UploadStorer`/`PhotoStorage` service.
+- `PhotoStorer` keeps filesystem side effects out of `SubmissionsHandler` while remaining small. If upload storage needs variants, richer testing seams, alternate backends, or background processing, expand or replace it with a fuller storage abstraction.
 - `DogSubmission::fromRequest()` will validate both text fields and upload metadata. That gives the handler the desired simple shape, but it means a submission domain factory depends on request-upload details. If this grows, introduce a small request parser or application service.
 - Converting `UploadException` into `SubmissionValidationException` gives the frontend one field-error shape, including `fields.photo`. The slightly odd part is that a response with a `fields` object may sometimes use status `413` or `415` instead of `422`; this is intentional so oversized and unsupported uploads are still represented accurately.
 
